@@ -11,6 +11,11 @@ import {
 import { unbackslash } from "./gcode.js";
 import { ORCA_FILAMENT_KEYS, STRUCTURAL_KEYS } from "../schema/orcaFilament.js";
 
+// Compatibility RULES whose value is a Prusa-specific expression. OrcaSlicer
+// evaluates these against installed printers and rejects the import when they
+// reference printer models it doesn't have — so we drop them outright.
+const DROP_KEYS = new Set(["compatible_printers_condition", "compatible_prints_condition"]);
+
 export interface TransformOutput {
   /** Orca key -> scalar string value (emitter wraps these in arrays). */
   values: Record<string, string>;
@@ -31,6 +36,21 @@ export function transformFilament(profile: PrusaProfile): TransformOutput {
     // `nil` means "inherit from printer/parent" — omit so Orca falls back.
     if (rawValue === "nil") {
       nilSkipped++;
+      continue;
+    }
+
+    // PrusaSlicer's printer-compatibility RULES reference Prusa's own
+    // printer_model tokens (MK4, MK3.9, …) which OrcaSlicer can't match — so
+    // carrying them over makes Orca's importer reject the profile as
+    // "incompatible". Drop them; an empty compatible_printers means the profile
+    // is usable on every printer, and the user selects it for theirs in Orca.
+    if (DROP_KEYS.has(srcKey)) {
+      droppedNoMapping++;
+      report.push({
+        severity: "warn",
+        sourceKey: srcKey,
+        message: `Dropped "${srcKey}" — it names Prusa printer models OrcaSlicer can't match (the reason Orca refuses such imports). The profile stays compatible with every printer; just select it for yours in Orca.`,
+      });
       continue;
     }
 

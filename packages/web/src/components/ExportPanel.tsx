@@ -96,9 +96,17 @@ export function ExportPanel({
           disabled={selectedCount === 0}
           className="rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-400 disabled:opacity-50"
         >
-          Download {selectedCount} selected (.zip)
+          {selectedCount === 0
+            ? "Select profiles to download"
+            : `Download ${selectedCount} selected (.zip)`}
         </button>
       </div>
+      {selectedCount === 0 && (
+        <p className="mt-2 text-xs text-amber-300/90">
+          Nothing selected yet — tick your profiles{graph ? " or any system profiles below" : ""} to
+          enable the download.
+        </p>
+      )}
 
       {/* Your profiles */}
       {yourItems.length > 0 && (
@@ -183,6 +191,42 @@ export function ExportPanel({
           )}
         </div>
       )}
+
+      <details className="mt-4 rounded-lg bg-zinc-950/40 p-3 text-xs text-zinc-400">
+        <summary className="cursor-pointer font-medium text-zinc-300">
+          After downloading — how to install in OrcaSlicer
+        </summary>
+        <ol className="mt-2 list-decimal space-y-1 pl-4">
+          <li>Unzip the downloaded file.</li>
+          <li>
+            Move the <code className="text-zinc-300">.json</code> files into OrcaSlicer’s filament
+            folder:
+            <ul className="mt-1 space-y-0.5">
+              <li>
+                macOS:{" "}
+                <code className="text-zinc-300">
+                  ~/Library/Application Support/OrcaSlicer/user/default/filament/
+                </code>
+              </li>
+              <li>
+                Windows:{" "}
+                <code className="text-zinc-300">%APPDATA%\OrcaSlicer\user\default\filament\</code>
+              </li>
+              <li>
+                Linux: <code className="text-zinc-300">~/.config/OrcaSlicer/user/default/filament/</code>
+              </li>
+            </ul>
+          </li>
+          <li>
+            Restart OrcaSlicer — the profiles appear in the Filament dropdown under your user presets.
+          </li>
+        </ol>
+        <p className="mt-2 text-zinc-500">
+          Tip: this drop-in method always works. OrcaSlicer’s <em>File ▸ Import ▸ Import Configs</em>
+          can say “0 configs imported” when a profile is tied to a printer you haven’t added — the
+          folder method skips that check.
+        </p>
+      </details>
     </section>
   );
 }
