@@ -20,13 +20,21 @@ export interface SourceInfo {
   file?: string;
 }
 
-/** An OrcaSlicer profile object, ready to be JSON-serialized. */
+/**
+ * An OrcaSlicer **user** filament profile, ready to be JSON-serialized.
+ *
+ * Mirrors exactly what OrcaSlicer writes when you create a filament through its
+ * own UI: bare structural fields (`name`/`from`/`inherits`/`version`/the
+ * `compatible_*` set) plus every setting value as a single-element string array.
+ * NOTE: user presets must NOT carry `instantiation` (that flag marks a
+ * system-root preset; on a `from: "User"` profile it corrupts Orca's preset tree
+ * and crashes the app when cloning a filament). `inherits` is always present —
+ * empty string for a standalone/flattened profile.
+ */
 export interface OrcaProfile {
-  type: "filament";
   name: string;
   from: "User";
-  instantiation: "true";
-  inherits?: string;
+  inherits: string;
   /** Every setting value in Orca filament JSON is a single-element string array. */
   [key: string]: string | string[] | undefined;
 }

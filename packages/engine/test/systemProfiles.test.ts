@@ -100,10 +100,19 @@ describe("re-link vs flatten strategy", () => {
     expect(r.profile.inherits).toBe("Prusa Generic ABS @CORE One HF 0.6");
   });
 
-  it("FLATTENS a multi-parent profile into a standalone (no inherits)", () => {
+  it("FLATTENS a multi-parent profile into a standalone (empty inherits)", () => {
     const r = convertFilamentProfile(node("Prusament PLA @MK4S"), ctx);
     expect(r.strategy).toBe("flatten");
-    expect(r.profile.inherits).toBeUndefined();
+    // Standalone profiles use an empty `inherits` (matches a native Orca export),
+    // not an absent one — and carry their own compatible_* set.
+    expect(r.profile.inherits).toBe("");
+    expect(r.profile.instantiation).toBeUndefined();
+    expect(r.profile.compatible_printers).toEqual([]);
+    expect(r.profile.compatible_printers_condition).toBe("");
+    expect(r.profile.compatible_prints).toEqual([]);
+    expect(r.profile.compatible_prints_condition).toBe("");
+    expect(r.profile.version).toBe("2.3.2.60");
+    expect(r.profile.filament_settings_id).toEqual(["Prusament PLA @MK4S"]);
     expect(r.profile.nozzle_temperature).toEqual(["215"]); // resolved from the chain
     expect(r.profile.fan_min_speed).toEqual(["70"]); // later-parent override survived
   });

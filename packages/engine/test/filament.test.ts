@@ -19,10 +19,20 @@ describe("config bundle (real fixture: Plymaker ABS @COREONE HF0.6)", () => {
     expect(abs).toBeDefined();
   });
 
-  it("emits a well-formed Orca filament header", () => {
-    expect(abs!.profile.type).toBe("filament");
+  it("emits the metadata shape Orca writes for a UI-created user filament", () => {
     expect(abs!.profile.from).toBe("User");
-    expect(abs!.profile.instantiation).toBe("true");
+    // User presets must NOT carry these — `instantiation`/`type` mark a system
+    // root and crash Orca when cloning a filament (matches a native Orca export).
+    expect(abs!.profile.instantiation).toBeUndefined();
+    expect(abs!.profile.type).toBeUndefined();
+    // Structural fields Orca always emits, present and correctly typed.
+    // This profile re-links (its parent ships in Orca), so inherits is the Orca parent
+    // and the compatible_* set is OMITTED — it inherits compatibility from the parent.
+    expect(abs!.profile.inherits).toBe("Prusa Generic ABS @CORE One HF 0.6");
+    expect(abs!.profile.version).toBe("2.3.2.60");
+    expect(abs!.profile.filament_settings_id).toEqual(["Plymaker ABS @COREONE HF0.6"]);
+    expect(abs!.profile.compatible_printers).toBeUndefined();
+    expect(abs!.profile.compatible_printers_condition).toBeUndefined();
   });
 
   it("wraps every setting value in a single-element string array", () => {
@@ -124,8 +134,11 @@ describe("printer-compatibility rules are dropped (so Orca will import)", () => 
   ].join("\n");
   const [r] = convertIniToOrcaFilaments(ini);
 
-  it("does not emit compatible_printers_condition (the import-rejection cause)", () => {
-    expect(r!.profile.compatible_printers_condition).toBeUndefined();
+  it("emits an EMPTY compatible_printers_condition, never the Prusa rule (the import-rejection cause)", () => {
+    // Standalone profile (no parent) → Orca's empty-string condition, exactly like
+    // a native Orca export. The Prusa printer_model expression must NOT survive.
+    expect(r!.profile.compatible_printers_condition).toBe("");
+    expect(JSON.stringify(r!.profile)).not.toContain("printer_model");
   });
 
   it("flags the drop in the report", () => {

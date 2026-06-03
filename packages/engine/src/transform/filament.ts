@@ -16,6 +16,13 @@ import { ORCA_FILAMENT_KEYS, STRUCTURAL_KEYS } from "../schema/orcaFilament.js";
 // reference printer models it doesn't have — so we drop them outright.
 const DROP_KEYS = new Set(["compatible_printers_condition", "compatible_prints_condition"]);
 
+// Structural compatibility fields the EMITTER owns — it re-adds them in the exact
+// shape Orca expects (empty on a standalone profile, omitted on a re-linked diff).
+// Drop any source value silently so a Prusa-side `compatible_printers` (which lists
+// Prusa printer names Orca can't match) can't leak onto a re-linked diff and
+// override its parent's compatibility, filing it under "Unsupported".
+const EMITTER_OWNED_KEYS = new Set(["compatible_printers", "compatible_prints"]);
+
 export interface TransformOutput {
   /** Orca key -> scalar string value (emitter wraps these in arrays). */
   values: Record<string, string>;
@@ -44,6 +51,9 @@ export function transformFilament(profile: PrusaProfile): TransformOutput {
     // carrying them over makes Orca's importer reject the profile as
     // "incompatible". Drop them; an empty compatible_printers means the profile
     // is usable on every printer, and the user selects it for theirs in Orca.
+    // Emitter owns these — discard any source value silently (not a real drop).
+    if (EMITTER_OWNED_KEYS.has(srcKey)) continue;
+
     if (DROP_KEYS.has(srcKey)) {
       droppedNoMapping++;
       report.push({
