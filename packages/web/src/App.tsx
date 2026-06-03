@@ -17,7 +17,6 @@ import { ExportPanel } from "./components/ExportPanel.tsx";
 import { Toast } from "./components/Toast.tsx";
 import { peekPrusaBundleCached } from "./lib/prusaCache.ts";
 import { loadState, saveState } from "./lib/appState.ts";
-import { trackError } from "./lib/metrics.ts";
 import sampleIni from "../../engine/test/fixtures/PrusaSlicer_config_bundle.ini?raw";
 
 interface RawInput {
@@ -121,7 +120,6 @@ export function App() {
       items = await Promise.all(files.map(async (f) => ({ name: f.name, text: await f.text() })));
     } catch (err) {
       console.error("finsync: failed to read dropped file(s)", err);
-      trackError("file-read", err);
       return;
     }
     if (generation.current !== gen) return; // cleared (or superseded) mid-read

@@ -27,13 +27,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build -w @finsync/web
-        # Optional analytics — set these as repo Variables to enable. Unset =
-        # empty = analytics disabled (no script, nothing sent). See
-        # packages/web/.env.example.
-        env:
-          VITE_ANALYTICS_SRC: ${{ vars.ANALYTICS_SRC }}
-          VITE_ANALYTICS_WEBSITE_ID: ${{ vars.ANALYTICS_WEBSITE_ID }}
-          VITE_ANALYTICS_DOMAIN: ${{ vars.ANALYTICS_DOMAIN }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
