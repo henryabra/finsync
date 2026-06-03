@@ -10,6 +10,8 @@ import {
   listPrinterVariants,
   listConvertibleProfiles,
   convertSelectedVendorProfiles,
+  buildCompatibilityIndex,
+  extractPrinterModels,
   matchOrcaProfile,
   prusaToOrcaName,
   ORCA_FILAMENT_PROFILE_INDEX,
@@ -164,6 +166,57 @@ describe("library mode", () => {
     expect(e.converted).toBe(true);
     // "Prusament PLA" has no @variant -> universal, still present
     expect(filtered.find((x) => x.name === "Prusament PLA")!.skipped).not.toBe("printer-filter");
+  });
+});
+
+describe("condition-aware printer compatibility", () => {
+  it("extracts positive printer_model tokens, ignoring negatives", () => {
+    expect(
+      extractPrinterModels("printer_model=~/(COREONE|COREONEL)/ and nozzle_diameter[0]==0.6"),
+    ).toEqual(["COREONE", "COREONEL"]);
+    expect(extractPrinterModels('printer_model!="MK3.5" and printer_notes=~/.*PG.*/')).toEqual([]);
+  });
+
+  const index = buildCompatibilityIndex(graph);
+
+  it("lists real printers with friendly names from printer_model sections", () => {
+    const l = index.printers.find((p) => p.model === "COREONEL");
+    expect(l?.label).toBe("CORE One L");
+    const co = index.printers.find((p) => p.model === "COREONE");
+    expect(co?.label).toBe("CORE One / CORE One+"); // && cleaned up
+    expect(index.printers.some((p) => p.model === "MK4S")).toBe(true);
+  });
+
+  it("treats a no-condition profile as universal", () => {
+    expect(index.universal.has("Prusament PLA")).toBe(true);
+  });
+
+  it("filters profiles by actual printer compatibility, not name", () => {
+    // @MK4S inherits *PLAFAST* (MK4S-only) -> not compatible with a CORE One L.
+    const forL = listConvertibleProfiles(graph, ORCA_FILAMENT_PROFILE_INDEX, {
+      printerModel: "COREONEL",
+      index,
+    });
+    expect(forL.some((c) => c.name === "Prusament PLA @MK4S")).toBe(false);
+    // Universal "Prusament PLA" still shows for CORE One L.
+    expect(forL.some((c) => c.name === "Prusament PLA")).toBe(true);
+
+    const forMk4s = listConvertibleProfiles(graph, ORCA_FILAMENT_PROFILE_INDEX, {
+      printerModel: "MK4S",
+      index,
+    });
+    expect(forMk4s.some((c) => c.name === "Prusament PLA @MK4S")).toBe(true);
+  });
+
+  it("includes deny-only profiles for any printer they don't exclude", () => {
+    // `printer_model!="MK3.5"` -> compatible with everything except MK3.5.
+    for (const model of ["COREONEL", "MK4S"]) {
+      const list = listConvertibleProfiles(graph, ORCA_FILAMENT_PROFILE_INDEX, {
+        printerModel: model,
+        index,
+      });
+      expect(list.some((c) => c.name === "Prusament PETG @Universal")).toBe(true);
+    }
   });
 });
 

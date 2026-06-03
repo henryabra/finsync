@@ -32,12 +32,17 @@ export {
   listPrinterVariants,
   listConvertibleProfiles,
   convertSelectedVendorProfiles,
+  buildCompatibilityIndex,
+  extractPrinterModels,
 } from "./library.js";
 export type {
   LibraryOptions,
   LibraryEntry,
   LibrarySkipReason,
   PrinterVariant,
+  PrinterOption,
+  CompatibilityIndex,
+  ModelConstraint,
   LibraryProfileInfo,
 } from "./library.js";
 export { matchOrcaProfile, prusaToOrcaName } from "./transform/orcaMatch.js";

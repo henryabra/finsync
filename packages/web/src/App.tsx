@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   convertIniToOrcaFilaments,
   parseIni,
@@ -6,6 +6,7 @@ import {
   schemaSource,
   createContext,
   listConvertibleProfiles,
+  buildCompatibilityIndex,
   ORCA_FILAMENT_PROFILE_INDEX,
   type ResolutionContext,
 } from "@finsync/engine";
@@ -24,7 +25,7 @@ interface RawInput {
 export function App() {
   const [inputs, setInputs] = useState<RawInput[]>([]);
   const [vendor, setVendor] = useState<{ name: string; text: string } | null>(null);
-  const [printer, setPrinter] = useState("CORE One HF 0.6");
+  const [printer, setPrinter] = useState(""); // printer_model token; "" = all printers
   // Bumped on Clear so an in-flight File.text() batch can't repopulate after it.
   const generation = useRef(0);
   // useRef (not a module-level counter) so HMR can't reset ids while state persists.
@@ -84,13 +85,28 @@ export function App() {
     [allResults],
   );
 
+  // Real printer list + per-profile compatibility, derived from each profile's
+  // compatible_printers_condition (resolved through inheritance).
+  const compat = useMemo(
+    () => (ctx.vendor ? buildCompatibilityIndex(ctx.vendor) : null),
+    [ctx.vendor],
+  );
+  const printers = compat?.printers ?? [];
+  const printerLabel = printer ? printers.find((p) => p.model === printer)?.label ?? printer : "";
+
+  // Drop a stale printer token when the bundle changes and no longer offers it,
+  // so a leftover selection can't silently filter the new bundle to empty.
+  useEffect(() => {
+    if (printer && compat && !compat.printers.some((p) => p.model === printer)) setPrinter("");
+  }, [compat, printer]);
+
   const systemCandidates = useMemo(() => {
-    if (!ctx.vendor) return [];
-    const token = printer.trim();
+    if (!ctx.vendor || !compat) return [];
     return listConvertibleProfiles(ctx.vendor, ORCA_FILAMENT_PROFILE_INDEX, {
-      printerFilter: token ? [token] : undefined,
+      printerModel: printer || undefined,
+      index: compat,
     }).filter((c) => !c.alreadyInOrca);
-  }, [ctx.vendor, printer]);
+  }, [ctx.vendor, compat, printer]);
 
   const totals = useMemo(
     () =>
@@ -133,6 +149,7 @@ export function App() {
       <SystemProfiles
         vendorName={vendor?.name}
         graph={ctx.vendor}
+        printers={printers}
         printer={printer}
         onPrinterChange={setPrinter}
         onLoad={(name, text) => setVendor({ name, text })}
@@ -143,7 +160,7 @@ export function App() {
         yourItems={yourItems}
         graph={ctx.vendor}
         systemCandidates={systemCandidates}
-        printerLabel={printer.trim()}
+        printerLabel={printerLabel}
       />
 
       {hasEntries && (

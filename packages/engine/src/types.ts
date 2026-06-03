@@ -93,6 +93,8 @@ export interface VendorNode {
 
 export interface VendorGraph {
   nodes: Map<string, VendorNode>;
+  /** printer_model token (e.g. "COREONEL") -> friendly name (e.g. "Prusa CORE One L"). */
+  printerModels: Map<string, string>;
   source: SourceInfo;
 }
 

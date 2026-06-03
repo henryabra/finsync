@@ -11,21 +11,30 @@ import type { VendorGraph, VendorNode, SourceInfo } from "../types.js";
 import { parseIni, detectSource } from "./parseIni.js";
 
 const FILAMENT_PREFIX = "filament:";
+const PRINTER_MODEL_PREFIX = "printer_model:";
 
 /** Build the filament inheritance graph from raw vendor-bundle .ini text. */
 export function buildVendorGraph(text: string, file?: string): VendorGraph {
   const parsed = parseIni(text);
   const source: SourceInfo = detectSource(parsed.header, file);
   const nodes = new Map<string, VendorNode>();
+  const printerModels = new Map<string, string>();
 
   if (parsed.sections) {
     for (const [header, settings] of parsed.sections) {
-      if (!header.startsWith(FILAMENT_PREFIX)) continue;
-      const name = header.slice(FILAMENT_PREFIX.length).trim();
-      nodes.set(name, toNode(name, settings));
+      if (header.startsWith(FILAMENT_PREFIX)) {
+        const name = header.slice(FILAMENT_PREFIX.length).trim();
+        nodes.set(name, toNode(name, settings));
+      } else if (header.startsWith(PRINTER_MODEL_PREFIX)) {
+        // [printer_model:COREONEL] name = Prusa CORE One L  -> the friendly name
+        // for the token that compatible_printers_condition rules reference.
+        const token = header.slice(PRINTER_MODEL_PREFIX.length).trim();
+        const name = settings["name"]?.replace(/^"+|"+$/g, "").trim();
+        if (name) printerModels.set(token, name);
+      }
     }
   }
-  return { nodes, source };
+  return { nodes, printerModels, source };
 }
 
 function toNode(name: string, raw: Record<string, string>): VendorNode {

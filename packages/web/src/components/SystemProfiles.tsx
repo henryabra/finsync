@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from "react";
 import {
-  listPrinterVariants,
   PRUSA_VENDOR_REFS,
   DEFAULT_PRUSA_REF,
   type VendorGraph,
+  type PrinterOption,
 } from "@finsync/engine";
 import { VariantPicker } from "./VariantPicker.tsx";
 import { fetchPrusaBundleCached, getCacheMeta, clearPrusaCache } from "../lib/prusaCache.ts";
@@ -25,6 +25,7 @@ const PRUSA_INI_PATH =
 export function SystemProfiles({
   vendorName,
   graph,
+  printers,
   printer,
   onPrinterChange,
   onLoad,
@@ -32,6 +33,7 @@ export function SystemProfiles({
 }: {
   vendorName?: string;
   graph?: VendorGraph;
+  printers: PrinterOption[];
   printer: string;
   onPrinterChange: (v: string) => void;
   onLoad: (name: string, text: string) => void;
@@ -71,7 +73,10 @@ export function SystemProfiles({
     setCacheTick((t) => t + 1);
   };
 
-  const variants = useMemo(() => (graph ? listPrinterVariants(graph) : []), [graph]);
+  const pickerOptions = useMemo(
+    () => printers.map((p) => ({ label: p.label, value: p.model, count: p.count })),
+    [printers],
+  );
 
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
@@ -172,9 +177,13 @@ export function SystemProfiles({
           </div>
           <label className="block max-w-md">
             <span className="mb-1 block text-[11px] uppercase tracking-wide text-zinc-500">
-              My printer &amp; nozzle (filters the Export list below)
+              My printer (filters the Export list below)
             </span>
-            <VariantPicker variants={variants} value={printer} onChange={onPrinterChange} />
+            <VariantPicker options={pickerOptions} value={printer} onChange={onPrinterChange} />
+            <span className="mt-1 block text-[11px] text-zinc-500">
+              Profiles are matched by real printer compatibility. Search the Export list for your
+              nozzle (e.g. “HF 0.6”).
+            </span>
           </label>
         </div>
       )}

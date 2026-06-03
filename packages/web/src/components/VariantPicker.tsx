@@ -1,30 +1,40 @@
 import { useMemo, useState } from "react";
-import type { PrinterVariant } from "@finsync/engine";
 
-// A searchable combobox for picking a printer/nozzle variant from the loaded
-// bundle. Free typing is still honored (used as a loose filter), so nothing is
-// lost if a user's exact variant isn't in the list.
+export interface PickerOption {
+  /** What the user sees, e.g. "CORE One L". */
+  label: string;
+  /** What gets selected, e.g. the printer_model token "COREONEL". */
+  value: string;
+  count: number;
+}
+
+// A searchable combobox. Shows a friendly label, selects an underlying value.
+// Free typing still works (used as a loose filter) so nothing is lost.
 export function VariantPicker({
-  variants,
+  options,
   value,
   onChange,
+  placeholder = "Pick your printer, or type to search…",
+  allLabel = "All printers",
 }: {
-  variants: PrinterVariant[];
+  options: PickerOption[];
   value: string;
-  onChange: (v: string) => void;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  allLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [typing, setTyping] = useState(false);
 
-  // Show the current selection until the user starts typing a search.
-  const display = open && typing ? query : value;
+  const selectedLabel = value === "" ? allLabel : options.find((o) => o.value === value)?.label ?? value;
+  const display = open && typing ? query : selectedLabel;
 
   const filtered = useMemo(() => {
     const q = open && typing ? query.toLowerCase().trim() : "";
-    const list = q ? variants.filter((v) => v.label.toLowerCase().includes(q)) : variants;
+    const list = q ? options.filter((o) => o.label.toLowerCase().includes(q)) : options;
     return list.slice(0, 60);
-  }, [variants, query, open, typing]);
+  }, [options, query, open, typing]);
 
   const select = (v: string) => {
     onChange(v);
@@ -37,15 +47,17 @@ export function VariantPicker({
     <div className="relative">
       <input
         value={display}
-        placeholder="Pick your printer, or type to search…"
+        placeholder={placeholder}
         onFocus={() => {
           setTyping(false);
           setOpen(true);
         }}
         onChange={(e) => {
+          // Query is local — only filters the dropdown. The selection is
+          // committed only on an explicit pick (value is an exact token, so
+          // committing raw keystrokes would filter to nothing).
           setQuery(e.target.value);
           setTyping(true);
-          onChange(e.target.value);
           setOpen(true);
         }}
         onBlur={() => setOpen(false)}
@@ -53,7 +65,7 @@ export function VariantPicker({
           if (e.key === "Escape") setOpen(false);
           if (e.key === "Enter" && filtered[0]) {
             e.preventDefault();
-            select(filtered[0].label);
+            select(filtered[0].value);
           }
         }}
         className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-sm text-zinc-100 outline-none focus:border-emerald-500"
@@ -69,20 +81,20 @@ export function VariantPicker({
               onClick={() => select("")}
               className="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm text-zinc-200 hover:bg-zinc-800"
             >
-              <span>All printers</span>
+              <span>{allLabel}</span>
               <span className="text-xs text-zinc-500">everything</span>
             </button>
           </li>
-          {filtered.map((v) => (
-            <li key={v.label}>
+          {filtered.map((o) => (
+            <li key={o.value}>
               <button
-                onClick={() => select(v.label)}
+                onClick={() => select(o.value)}
                 className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm hover:bg-zinc-800 ${
-                  v.label === value ? "text-emerald-300" : "text-zinc-200"
+                  o.value === value ? "text-emerald-300" : "text-zinc-200"
                 }`}
               >
-                <span>{v.label}</span>
-                <span className="text-xs text-zinc-500">{v.count} profiles</span>
+                <span>{o.label}</span>
+                <span className="text-xs text-zinc-500">{o.count} profiles</span>
               </button>
             </li>
           ))}
