@@ -1,0 +1,14 @@
+{
+  "name": "finsync",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Proven, up-to-date PrusaSlicer -> OrcaSlicer profile migration engine + UI",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "convert": "npm run convert --workspace @finsync/engine --"
+  },
+  "license": "MIT"
+}

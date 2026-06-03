@@ -1,0 +1,13 @@
+{
+  "name": "@finsync/schema-sync",
+  "version": "0.0.1",
+  "description": "Regenerates the Orca filament target schema from the live OrcaSlicer repo (the 'up-to-date' engine)",
+  "type": "module",
+  "scripts": {
+    "sync": "tsx src/sync.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2"
+  },
+  "license": "MIT"
+}
