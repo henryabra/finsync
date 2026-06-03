@@ -1,12 +1,23 @@
 import { useMemo, useRef, useState } from "react";
 import {
   listPrinterVariants,
-  fetchPrusaVendorBundle,
   PRUSA_VENDOR_REFS,
   DEFAULT_PRUSA_REF,
   type VendorGraph,
 } from "@finsync/engine";
 import { VariantPicker } from "./VariantPicker.tsx";
+import { fetchPrusaBundleCached, getCacheMeta, clearPrusaCache } from "../lib/prusaCache.ts";
+
+function ago(ts: number): string {
+  if (!ts) return "";
+  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 60) return "just now";
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.round(h / 24)}d ago`;
+}
 
 const PRUSA_INI_PATH =
   "~/Library/Application Support/PrusaSlicer/vendor/PrusaResearch.ini";
@@ -30,24 +41,34 @@ export function SystemProfiles({
   const [ref, setRef] = useState(DEFAULT_PRUSA_REF);
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [cacheTick, setCacheTick] = useState(0);
+
+  const cached = useMemo(() => getCacheMeta(ref), [ref, cacheTick]);
 
   const loadFile = async (file: File | undefined) => {
     if (!file) return;
     onLoad(file.name, await file.text());
   };
 
-  const fetchFromPrusa = async () => {
+  const fetchFromPrusa = async (force = false) => {
     setFetching(true);
     setFetchError(null);
     try {
-      const b = await fetchPrusaVendorBundle(ref);
+      const b = await fetchPrusaBundleCached(ref, force);
       const ver = b.configVersion ? ` · v${b.configVersion}` : "";
-      onLoad(`PrusaResearch.ini @ ${ref}${ver}`, b.text);
+      const tag = b.fromCache ? " (cached)" : "";
+      onLoad(`PrusaResearch.ini @ ${ref}${ver}${tag}`, b.text);
+      setCacheTick((t) => t + 1);
     } catch (e) {
       setFetchError(e instanceof Error ? e.message : "Fetch failed.");
     } finally {
       setFetching(false);
     }
+  };
+
+  const clearCache = async () => {
+    await clearPrusaCache();
+    setCacheTick((t) => t + 1);
   };
 
   const variants = useMemo(() => (graph ? listPrinterVariants(graph) : []), [graph]);
@@ -91,11 +112,11 @@ export function SystemProfiles({
               ))}
             </select>
             <button
-              onClick={fetchFromPrusa}
+              onClick={() => fetchFromPrusa(false)}
               disabled={fetching}
               className="rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-400 disabled:opacity-60"
             >
-              {fetching ? "Fetching…" : "Fetch from Prusa"}
+              {fetching ? "Loading…" : cached ? "Load cached" : "Fetch from Prusa"}
             </button>
             <span className="text-xs text-zinc-600">or</span>
             <button
@@ -105,6 +126,23 @@ export function SystemProfiles({
               Load a local file…
             </button>
           </div>
+          {cached && (
+            <p className="text-xs text-emerald-300/90">
+              ✓ Cached{cached.configVersion ? ` v${cached.configVersion}` : ""}
+              {cached.cachedAt ? ` · ${ago(cached.cachedAt)}` : ""} — loads instantly &amp; offline.{" "}
+              <button
+                onClick={() => fetchFromPrusa(true)}
+                disabled={fetching}
+                className="text-emerald-400 hover:underline disabled:opacity-60"
+              >
+                Refresh from GitHub
+              </button>{" "}
+              ·{" "}
+              <button onClick={clearCache} className="text-zinc-400 hover:underline">
+                Clear cache
+              </button>
+            </p>
+          )}
           <input
             ref={input}
             type="file"
