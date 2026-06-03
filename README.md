@@ -29,7 +29,21 @@ Working end-to-end and tested against real exported profiles:
 - ✅ Per-profile conversion report (the trust layer — every drop/clamp is listed)
 - ✅ Emits correct Orca filament JSON (single-element string arrays, `from: User`)
 
-Next: print + printer/machine profiles, full-bundle one-shot, then the web UI.
+### Web UI (`packages/web`) — shipped
+
+A zero-install browser app over the engine: drag a Prusa `.ini` (or several) in,
+get per-profile conversion cards — mapped/dropped/nil/invalid stats, the full
+conversion report, inheritance status, JSON preview, and per-file or
+**Download all (.zip)** output. The engine runs 100% client-side; nothing is
+uploaded. Built with Vite + React + Tailwind, the engine imported straight from
+source (no separate build step).
+
+```bash
+npm install
+npm run dev --workspace @finsync/web    # http://localhost:5173
+```
+
+Next: print + printer/machine profiles, then full-bundle one-shot — all behind the same UI.
 
 ## Use it
 
@@ -55,7 +69,7 @@ packages/engine/      @finsync/engine — headless, pure TS, runs in Node AND br
   src/emit/ report/   Orca JSON + conversion report
   test/fixtures/      real exported Prusa profiles (regression corpus)
 packages/schema-sync/ regenerates the Orca schema from the live OrcaSlicer repo
-packages/web/         (planned) client-side browser app importing the engine
+packages/web/         client-side browser app (Vite + React + Tailwind) importing the engine
 ```
 
 MIT.
