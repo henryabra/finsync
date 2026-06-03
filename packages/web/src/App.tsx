@@ -37,6 +37,11 @@ export function App() {
   const [selectedSystem, setSelectedSystem] = useState<Set<string>>(
     () => new Set(initial.selectedSystem),
   );
+  const [query, setQuery] = useState(initial.query); // export search text
+  const [showExisting, setShowExisting] = useState(initial.showExisting);
+  const [excludedYours, setExcludedYours] = useState<Set<string>>(
+    () => new Set(initial.excludedYours),
+  );
   const [toast, setToast] = useState<string | null>(null);
   // Bumped on Clear so an in-flight File.text() batch can't repopulate after it.
   const generation = useRef(0);
@@ -45,10 +50,18 @@ export function App() {
   // useRef (not a module-level counter) so HMR can't reset ids while state persists.
   const nextId = useRef(1);
 
-  // Persist the remembered choices whenever they change.
+  // Persist every remembered choice whenever any of them change.
   useEffect(() => {
-    saveState({ ref, printer, orcaPrinters, selectedSystem: [...selectedSystem] });
-  }, [ref, printer, orcaPrinters, selectedSystem]);
+    saveState({
+      ref,
+      printer,
+      orcaPrinters,
+      selectedSystem: [...selectedSystem],
+      query,
+      showExisting,
+      excludedYours: [...excludedYours],
+    });
+  }, [ref, printer, orcaPrinters, selectedSystem, query, showExisting, excludedYours]);
 
   // On startup, if the selected bundle version is already cached, load it
   // automatically (cache-only — never a surprise download) so system profiles are
@@ -207,6 +220,12 @@ export function App() {
         onOrcaPrintersChange={setOrcaPrinters}
         selectedSystem={selectedSystem}
         onSelectedSystemChange={setSelectedSystem}
+        query={query}
+        onQueryChange={setQuery}
+        showExisting={showExisting}
+        onShowExistingChange={setShowExisting}
+        excludedYours={excludedYours}
+        onExcludedYoursChange={setExcludedYours}
       />
 
       {hasEntries && (

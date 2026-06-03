@@ -1,4 +1,4 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useMemo, type Dispatch, type SetStateAction } from "react";
 import {
   convertSelectedVendorProfiles,
   ORCA_FILAMENT_PROFILE_INDEX,
@@ -39,6 +39,12 @@ export function ExportPanel({
   onOrcaPrintersChange,
   selectedSystem,
   onSelectedSystemChange,
+  query,
+  onQueryChange,
+  showExisting,
+  onShowExistingChange,
+  excludedYours,
+  onExcludedYoursChange,
 }: {
   yourItems: YourItem[];
   graph?: VendorGraph;
@@ -52,14 +58,16 @@ export function ExportPanel({
   /** Persisted by App: system filament profiles ticked for export. */
   selectedSystem: Set<string>;
   onSelectedSystemChange: Dispatch<SetStateAction<Set<string>>>;
+  /** Persisted by App: search text in the system-profiles list. */
+  query: string;
+  onQueryChange: (v: string) => void;
+  /** Persisted by App: reveal already-in-Orca profiles in the all-printers view. */
+  showExisting: boolean;
+  onShowExistingChange: Dispatch<SetStateAction<boolean>>;
+  /** Persisted by App: filenames of your own profiles excluded from export. */
+  excludedYours: Set<string>;
+  onExcludedYoursChange: Dispatch<SetStateAction<Set<string>>>;
 }) {
-  const [excludedYours, setExcludedYours] = useState<Set<string>>(new Set());
-  const [query, setQuery] = useState("");
-  // Profiles Orca already ships are hidden by default ("you already have them"),
-  // but some printers (e.g. CORE One L) can't actually use Orca's shipped copy, so
-  // this reveals them for export.
-  const [showExisting, setShowExisting] = useState(false);
-
   const compatiblePrinters = orcaPrinters
     .split(",")
     .map((s) => s.trim())
@@ -87,7 +95,7 @@ export function ExportPanel({
   const selectedCount = yoursIncluded.length + selectedSystem.size;
 
   const toggleYours = (f: string) =>
-    setExcludedYours((s) => {
+    onExcludedYoursChange((s) => {
       const n = new Set(s);
       n.has(f) ? n.delete(f) : n.add(f);
       return n;
@@ -232,7 +240,7 @@ export function ExportPanel({
             <>
               <input
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => onQueryChange(e.target.value)}
                 placeholder="Search system profiles… e.g. Prusament PETG"
                 className="mb-2 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-sm text-zinc-100 outline-none focus:border-emerald-500"
               />
@@ -241,7 +249,7 @@ export function ExportPanel({
                   <input
                     type="checkbox"
                     checked={showExisting}
-                    onChange={() => setShowExisting((v) => !v)}
+                    onChange={() => onShowExistingChange((v) => !v)}
                     className="mt-0.5 accent-emerald-500"
                   />
                   <span>

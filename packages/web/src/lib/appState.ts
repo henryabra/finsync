@@ -20,6 +20,12 @@ export interface PersistedState {
   orcaPrinters: string;
   /** Names of system filament profiles ticked for export. */
   selectedSystem: string[];
+  /** Search text in the export system-profiles list. */
+  query: string;
+  /** Whether already-in-Orca profiles are revealed in the "all printers" view. */
+  showExisting: boolean;
+  /** Filenames of your own profiles unticked (excluded) from export. */
+  excludedYours: string[];
 }
 
 export const DEFAULT_STATE: PersistedState = {
@@ -27,6 +33,9 @@ export const DEFAULT_STATE: PersistedState = {
   printer: "",
   orcaPrinters: "",
   selectedSystem: [],
+  query: "",
+  showExisting: false,
+  excludedYours: [],
 };
 
 const KEY = "finsync:state:v1";
