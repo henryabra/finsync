@@ -1,6 +1,29 @@
 import { useMemo, useState } from "react";
-import type { ConversionResult, ReportEntry, InheritsStatus } from "@finsync/engine";
+import type {
+  ConversionResult,
+  ConversionStrategy,
+  ReportEntry,
+  InheritsStatus,
+} from "@finsync/engine";
 import { downloadBlob } from "../lib/download.ts";
+
+const STRATEGY: Record<ConversionStrategy, { label: string; cls: string; title: string }> = {
+  relink: {
+    label: "re-linked",
+    cls: "bg-sky-500/15 text-sky-300",
+    title: "Emits only your overrides and inherits an existing OrcaSlicer preset.",
+  },
+  flatten: {
+    label: "flattened",
+    cls: "bg-violet-500/15 text-violet-300",
+    title: "Parent chain resolved from PrusaResearch.ini and inlined — standalone profile.",
+  },
+  "diff-only": {
+    label: "diff only",
+    cls: "bg-zinc-600/40 text-zinc-300",
+    title: "No vendor bundle loaded — emitted as-is with a best-effort parent name.",
+  },
+};
 
 const SEV_STYLE: Record<ReportEntry["severity"], string> = {
   info: "border-zinc-700 bg-zinc-800/40 text-zinc-300",
@@ -19,6 +42,15 @@ function InheritsBadge({ inherits }: { inherits: InheritsStatus }) {
     return (
       <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-300">
         inherits → {inherits.orca}
+      </span>
+    );
+  if (inherits.kind === "flattened")
+    return (
+      <span
+        title={inherits.from.length ? `Merged: ${inherits.from.join(" → ")}` : undefined}
+        className="rounded-full bg-violet-500/15 px-2.5 py-0.5 text-xs font-medium text-violet-300"
+      >
+        standalone ({inherits.from.length} parent{inherits.from.length === 1 ? "" : "s"} inlined)
       </span>
     );
   if (inherits.kind === "carried")
@@ -102,6 +134,12 @@ export function ResultCard({ result }: { result: ConversionResult }) {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span
+          title={STRATEGY[result.strategy].title}
+          className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STRATEGY[result.strategy].cls}`}
+        >
+          {STRATEGY[result.strategy].label}
+        </span>
         <InheritsBadge inherits={result.inherits} />
         {warnings > 0 && (
           <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-300">

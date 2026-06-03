@@ -11,15 +11,29 @@
 // and flag it LOUDLY in the report (this is the one place silent migration
 // would produce a broken profile).
 
-import type { InheritsStatus } from "../types.js";
+import type { InheritsStatus, OrcaNameIndex } from "../types.js";
+import { matchOrcaProfile } from "./orcaMatch.js";
 
 /** Known exact Prusa->Orca system preset renames can be added here over time. */
 const KNOWN: Record<string, string> = {};
 
-export function resolveInherits(raw: string | undefined): InheritsStatus {
+/**
+ * Best-effort name-only resolution for the legacy path (no vendor graph).
+ * When an Orca preset index is supplied it is authoritative; otherwise we fall
+ * back to the naming heuristic and flag uncertain results for the user.
+ */
+export function resolveInherits(
+  raw: string | undefined,
+  index?: OrcaNameIndex,
+): InheritsStatus {
   if (!raw) return { kind: "none" };
   const key = raw.trim();
   if (KNOWN[key]) return { kind: "resolved", orca: KNOWN[key]!, prusa: key };
+
+  if (index) {
+    const hit = matchOrcaProfile(key, index);
+    if (hit) return { kind: "resolved", orca: hit, prusa: key };
+  }
 
   const guess = normalizePrusaPreset(key);
   if (guess) return { kind: "resolved", orca: guess, prusa: key };

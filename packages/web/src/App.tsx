@@ -4,49 +4,57 @@ import {
   parseIni,
   detectSource,
   schemaSource,
-  type ConversionResult,
+  createContext,
+  type ResolutionContext,
 } from "@finsync/engine";
 import { Dropzone } from "./components/Dropzone.tsx";
 import { ResultCard } from "./components/ResultCard.tsx";
+import { SystemProfiles } from "./components/SystemProfiles.tsx";
 import { downloadZip } from "./lib/download.ts";
 import sampleIni from "../../engine/test/fixtures/PrusaSlicer_config_bundle.ini?raw";
 
-interface FileEntry {
+interface RawInput {
   id: number;
   name: string;
-  sourceLabel: string;
-  results: ConversionResult[];
+  text: string;
 }
 
 export function App() {
-  const [entries, setEntries] = useState<FileEntry[]>([]);
+  const [inputs, setInputs] = useState<RawInput[]>([]);
+  const [vendor, setVendor] = useState<{ name: string; text: string } | null>(null);
   // Bumped on Clear so an in-flight File.text() batch can't repopulate after it.
   const generation = useRef(0);
   // useRef (not a module-level counter) so HMR can't reset ids while state persists.
   const nextId = useRef(1);
 
+  // Re-linking to Orca presets is always on; a loaded vendor bundle enables
+  // flattening for parents Orca doesn't ship. Conversions re-run when it changes.
+  const ctx = useMemo<ResolutionContext>(
+    () => createContext({ vendorText: vendor?.text, vendorFile: vendor?.name }),
+    [vendor],
+  );
+
+  const entries = useMemo(
+    () =>
+      inputs.map((i) => {
+        const parsed = parseIni(i.text);
+        const src = detectSource(parsed.header, i.name);
+        const sourceLabel = src.version ? `${src.slicer} ${src.version}` : src.slicer;
+        return { ...i, sourceLabel, results: convertIniToOrcaFilaments(i.text, i.name, ctx) };
+      }),
+    [inputs, ctx],
+  );
+
   const addTexts = (items: { name: string; text: string }[]) => {
-    const added = items.map(({ name, text }): FileEntry => {
-      const parsed = parseIni(text);
-      const src = detectSource(parsed.header, name);
-      const sourceLabel = src.version ? `${src.slicer} ${src.version}` : src.slicer;
-      return {
-        id: nextId.current++,
-        name,
-        sourceLabel,
-        results: convertIniToOrcaFilaments(text, name),
-      };
-    });
-    setEntries((prev) => [...prev, ...added]);
+    const added = items.map((i): RawInput => ({ id: nextId.current++, ...i }));
+    setInputs((prev) => [...prev, ...added]);
   };
 
   const onFiles = async (files: File[]) => {
     const gen = generation.current;
     let items: { name: string; text: string }[];
     try {
-      items = await Promise.all(
-        files.map(async (f) => ({ name: f.name, text: await f.text() })),
-      );
+      items = await Promise.all(files.map(async (f) => ({ name: f.name, text: await f.text() })));
     } catch (err) {
       console.error("finsync: failed to read dropped file(s)", err);
       return;
@@ -105,6 +113,13 @@ export function App() {
 
       <Dropzone onFiles={onFiles} onSample={onSample} compact={hasEntries} />
 
+      <SystemProfiles
+        vendorName={vendor?.name}
+        graph={ctx.vendor}
+        onLoad={(name, text) => setVendor({ name, text })}
+        onClear={() => setVendor(null)}
+      />
+
       {hasEntries && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3">
@@ -129,7 +144,7 @@ export function App() {
               <button
                 onClick={() => {
                   generation.current++;
-                  setEntries([]);
+                  setInputs([]);
                 }}
                 className="rounded-md border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:bg-zinc-800"
               >
