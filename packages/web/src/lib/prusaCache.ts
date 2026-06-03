@@ -107,6 +107,32 @@ export async function fetchPrusaBundleCached(
   return { ...fresh, fromCache: false, cachedAt };
 }
 
+/**
+ * Return the cached bundle for a ref, or null — NEVER hits the network. Used to
+ * auto-load the latest-stable bundle on startup without a surprise download.
+ */
+export async function peekPrusaBundleCached(ref: string): Promise<CachedBundle | null> {
+  const cache = await openCache();
+  if (!cache) return null;
+  const url = prusaBundleUrl(ref);
+  try {
+    const hit = await cache.match(url);
+    if (!hit) return null;
+    const text = await hit.text();
+    const meta = getCacheMeta(ref);
+    return {
+      text,
+      ref,
+      url,
+      configVersion: meta?.configVersion ?? configVersionOf(text),
+      fromCache: true,
+      cachedAt: meta?.cachedAt ?? 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Forget every cached bundle. */
 export async function clearPrusaCache(): Promise<void> {
   try {
