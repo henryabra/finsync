@@ -76,12 +76,7 @@ export function App() {
   // system profiles available for the chosen printer (listed cheaply; converted
   // only when selected for download).
   const yourItems = useMemo(
-    () =>
-      allResults.map((r) => ({
-        filename: r.filename,
-        name: r.profile.name,
-        json: JSON.stringify(r.profile, null, 4),
-      })),
+    () => allResults.map((r) => ({ filename: r.filename, name: r.profile.name, profile: r.profile })),
     [allResults],
   );
 

@@ -4,16 +4,27 @@ import {
   ORCA_FILAMENT_PROFILE_INDEX,
   type VendorGraph,
   type LibraryProfileInfo,
+  type OrcaProfile,
 } from "@finsync/engine";
 import { downloadZip } from "../lib/download.ts";
 
 export interface YourItem {
   filename: string;
   name: string;
-  json: string;
+  profile: OrcaProfile;
 }
 
 const RENDER_CAP = 300;
+
+// OrcaSlicer decides filament compatibility from `compatible_printers` (a list of
+// exact Orca printer preset names). Stamp the user's printer(s) onto every
+// exported profile so they don't import as "Unsupported".
+function profileJson(profile: OrcaProfile, compatiblePrinters: string[]): string {
+  const out = compatiblePrinters.length
+    ? { ...profile, compatible_printers: compatiblePrinters }
+    : profile;
+  return JSON.stringify(out, null, 4);
+}
 
 // The single download surface: your profiles (checked by default) plus any
 // system profiles you tick on. You pick what goes in the zip — it isn't an
@@ -32,6 +43,12 @@ export function ExportPanel({
   const [excludedYours, setExcludedYours] = useState<Set<string>>(new Set());
   const [selectedSystem, setSelectedSystem] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
+  const [orcaPrinters, setOrcaPrinters] = useState("");
+
+  const compatiblePrinters = orcaPrinters
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   const filteredSystem = useMemo(() => {
     const q = query.toLowerCase().trim();
@@ -62,7 +79,10 @@ export function ExportPanel({
   const clearSystem = () => setSelectedSystem(new Set());
 
   const download = () => {
-    const files = yoursIncluded.map((i) => ({ filename: i.filename, content: i.json }));
+    const files = yoursIncluded.map((i) => ({
+      filename: i.filename,
+      content: profileJson(i.profile, compatiblePrinters),
+    }));
     const used = new Set(files.map((f) => f.filename));
     if (graph && selectedSystem.size) {
       const converted = convertSelectedVendorProfiles(
@@ -72,7 +92,7 @@ export function ExportPanel({
       );
       for (const r of converted) {
         if (used.has(r.filename)) continue; // your customised profile wins on a name clash
-        files.push({ filename: r.filename, content: JSON.stringify(r.profile, null, 4) });
+        files.push({ filename: r.filename, content: profileJson(r.profile, compatiblePrinters) });
         used.add(r.filename);
       }
     }
@@ -107,6 +127,32 @@ export function ExportPanel({
           enable the download.
         </p>
       )}
+
+      {/* Make compatible with the user's OrcaSlicer printer */}
+      <div className="mt-4 rounded-lg bg-zinc-950/40 p-3">
+        <label className="block">
+          <span className="text-xs font-medium text-zinc-300">
+            Your OrcaSlicer printer name(s)
+          </span>
+          <input
+            value={orcaPrinters}
+            onChange={(e) => setOrcaPrinters(e.target.value)}
+            placeholder="e.g. Prusa CORE One L HF 0.6 nozzle"
+            className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-sm text-zinc-100 outline-none focus:border-emerald-500"
+          />
+        </label>
+        <p className="mt-1.5 text-xs text-zinc-400">
+          Copy the <strong>exact</strong> name from OrcaSlicer’s printer dropdown (top-left) so the
+          profiles attach to your printer. Separate several with commas.
+          {compatiblePrinters.length === 0 && (
+            <span className="text-amber-300">
+              {" "}
+              Without this, profiles import but show as <em>“Unsupported”</em> until you assign a
+              printer in Orca.
+            </span>
+          )}
+        </p>
+      </div>
 
       {/* Your profiles */}
       {yourItems.length > 0 && (
@@ -222,9 +268,14 @@ export function ExportPanel({
           </li>
         </ol>
         <p className="mt-2 text-zinc-500">
-          Tip: this drop-in method always works. OrcaSlicer’s <em>File ▸ Import ▸ Import Configs</em>
-          can say “0 configs imported” when a profile is tied to a printer you haven’t added — the
-          folder method skips that check.
+          Showing under <em>“Unsupported”</em>? That means the profile isn’t attached to your printer.
+          Fill in <strong>your OrcaSlicer printer name</strong> above before downloading (it sets
+          <code className="text-zinc-400"> compatible_printers</code>), or in Orca open the filament’s
+          “…” menu and tick your printer under “compatible printers”.
+        </p>
+        <p className="mt-1 text-zinc-600">
+          Tip: the drop-in folder method always loads the files; OrcaSlicer’s <em>Import Configs</em>
+          can instead say “0 imported” for printers you haven’t added.
         </p>
       </details>
     </section>
