@@ -19,6 +19,13 @@ export type {
 export { parseIni, detectSource } from "./ingest/parseIni.js";
 export { extractFilamentProfiles } from "./ingest/extractProfiles.js";
 export { buildVendorGraph, isAbstract } from "./ingest/vendorBundle.js";
+export {
+  fetchPrusaVendorBundle,
+  prusaBundleUrl,
+  PRUSA_VENDOR_REFS,
+  DEFAULT_PRUSA_REF,
+} from "./ingest/fetchVendorBundle.js";
+export type { PrusaVendorRef, FetchedVendorBundle } from "./ingest/fetchVendorBundle.js";
 export { convertFilamentProfile } from "./convertFilament.js";
 export { convertVendorLibrary } from "./library.js";
 export type { LibraryOptions, LibraryEntry, LibrarySkipReason } from "./library.js";

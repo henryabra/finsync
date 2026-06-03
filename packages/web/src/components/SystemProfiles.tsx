@@ -1,6 +1,9 @@
 import { useMemo, useRef, useState } from "react";
 import {
   convertVendorLibrary,
+  fetchPrusaVendorBundle,
+  PRUSA_VENDOR_REFS,
+  DEFAULT_PRUSA_REF,
   ORCA_FILAMENT_PROFILE_INDEX,
   type VendorGraph,
   type LibraryEntry,
@@ -24,11 +27,29 @@ export function SystemProfiles({
   const input = useRef<HTMLInputElement>(null);
   const [filter, setFilter] = useState("CORE One HF 0.6");
   const [lib, setLib] = useState<LibraryEntry[] | null>(null);
+  const [ref, setRef] = useState(DEFAULT_PRUSA_REF);
+  const [fetching, setFetching] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const loadFile = async (file: File | undefined) => {
     if (!file) return;
     onLoad(file.name, await file.text());
     setLib(null);
+  };
+
+  const fetchFromPrusa = async () => {
+    setFetching(true);
+    setFetchError(null);
+    try {
+      const b = await fetchPrusaVendorBundle(ref);
+      const ver = b.configVersion ? ` · v${b.configVersion}` : "";
+      onLoad(`PrusaResearch.ini @ ${ref}${ver}`, b.text);
+      setLib(null);
+    } catch (e) {
+      setFetchError(e instanceof Error ? e.message : "Fetch failed.");
+    } finally {
+      setFetching(false);
+    }
   };
 
   const convert = () => {
@@ -83,13 +104,35 @@ export function SystemProfiles({
       </div>
 
       {!graph ? (
-        <div className="mt-4">
-          <button
-            onClick={() => input.current?.click()}
-            className="rounded-md bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-white"
-          >
-            Load PrusaResearch.ini…
-          </button>
+        <div className="mt-4 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={ref}
+              onChange={(e) => setRef(e.target.value)}
+              disabled={fetching}
+              className="rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-sm text-zinc-100 outline-none focus:border-emerald-500"
+            >
+              {PRUSA_VENDOR_REFS.map((r) => (
+                <option key={r.ref} value={r.ref}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={fetchFromPrusa}
+              disabled={fetching}
+              className="rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-400 disabled:opacity-60"
+            >
+              {fetching ? "Fetching…" : "Fetch from Prusa"}
+            </button>
+            <span className="text-xs text-zinc-600">or</span>
+            <button
+              onClick={() => input.current?.click()}
+              className="rounded-md border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-800"
+            >
+              Load a local file…
+            </button>
+          </div>
           <input
             ref={input}
             type="file"
@@ -100,8 +143,14 @@ export function SystemProfiles({
               e.target.value = "";
             }}
           />
-          <p className="mt-3 text-xs text-zinc-500">
-            On macOS it lives at <code className="text-zinc-400">{PRUSA_INI_PATH}</code>
+          {fetchError && (
+            <p className="text-xs text-red-300">
+              {fetchError} You can still load the file locally.
+            </p>
+          )}
+          <p className="text-xs text-zinc-500">
+            Fetches from prusa3d/PrusaSlicer (GitHub). Your locally-installed copy at{" "}
+            <code className="text-zinc-400">{PRUSA_INI_PATH}</code> may be a touch newer.
           </p>
         </div>
       ) : (
