@@ -276,6 +276,12 @@ export function ExportPanel({
           </li>
         </ol>
         <p className="mt-2 text-zinc-500">
+          Drop the files straight into that <code className="text-zinc-400">filament/</code> folder — not
+          the <code className="text-zinc-400">base/</code> subfolder. Orca may later copy presets into{" "}
+          <code className="text-zinc-400">base/</code> on its own; that’s normal and you don’t need to
+          put anything there yourself.
+        </p>
+        <p className="mt-2 text-zinc-500">
           Showing under <em>“Unsupported”</em>? That means the profile isn’t attached to your printer.
           Fill in <strong>your OrcaSlicer printer name</strong> above before downloading (it sets
           <code className="text-zinc-400"> compatible_printers</code>), or in Orca open the filament’s
