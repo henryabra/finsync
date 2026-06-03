@@ -1,5 +1,7 @@
 # finsync
 
+**▶ Live app: https://henryabra.github.io/finsync/** — convert in your browser, nothing uploaded.
+
 A **proven, up-to-date** PrusaSlicer → OrcaSlicer profile migration engine, plus a
 browser UI on top. Fills the gap the existing tools leave: OrcaSlicer refuses to
 import `.ini` natively, theophile's reference Perl script is proven but frozen at

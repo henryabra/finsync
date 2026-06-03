@@ -6,6 +6,7 @@ import {
 } from "@finsync/engine";
 import { VariantPicker } from "./VariantPicker.tsx";
 import { fetchPrusaBundleCached, getCacheMeta, clearPrusaCache } from "../lib/prusaCache.ts";
+import { track, trackError } from "../lib/metrics.ts";
 
 function ago(ts: number): string {
   if (!ts) return "";
@@ -64,8 +65,10 @@ export function SystemProfiles({
       const tag = b.fromCache ? " (cached)" : "";
       onLoad(`PrusaResearch.ini @ ${bundleRef}${ver}${tag}`, b.text);
       setCacheTick((t) => t + 1);
+      track("bundle-loaded", { ref: bundleRef, source: b.fromCache ? "cache" : "network" });
     } catch (e) {
       setFetchError(e instanceof Error ? e.message : "Fetch failed.");
+      trackError("bundle-fetch", e);
     } finally {
       setFetching(false);
     }

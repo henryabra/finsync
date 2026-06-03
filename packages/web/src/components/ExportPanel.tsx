@@ -7,6 +7,7 @@ import {
   type OrcaProfile,
 } from "@finsync/engine";
 import { downloadZip } from "../lib/download.ts";
+import { track } from "../lib/metrics.ts";
 
 export interface YourItem {
   filename: string;
@@ -148,7 +149,10 @@ export function ExportPanel({
         used.add(r.filename);
       }
     }
-    if (files.length) downloadZip(files, "orca-filaments.zip");
+    if (files.length) {
+      downloadZip(files, "orca-filaments.zip");
+      track("download", { profiles: files.length, system: exportableSystem.length });
+    }
   };
 
   if (yourItems.length === 0 && systemCandidates.length === 0) return null;
