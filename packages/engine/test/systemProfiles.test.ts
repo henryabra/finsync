@@ -8,6 +8,8 @@ import {
   convertIniToOrcaFilaments,
   createContext,
   listPrinterVariants,
+  listConvertibleProfiles,
+  convertSelectedVendorProfiles,
   matchOrcaProfile,
   prusaToOrcaName,
   ORCA_FILAMENT_PROFILE_INDEX,
@@ -162,6 +164,34 @@ describe("library mode", () => {
     expect(e.converted).toBe(true);
     // "Prusament PLA" has no @variant -> universal, still present
     expect(filtered.find((x) => x.name === "Prusament PLA")!.skipped).not.toBe("printer-filter");
+  });
+});
+
+describe("selectable export (list cheaply, convert only what's chosen)", () => {
+  const candidates = listConvertibleProfiles(graph, ORCA_FILAMENT_PROFILE_INDEX);
+
+  it("lists concrete profiles without converting, flagging already-in-Orca", () => {
+    const abs = candidates.find((c) => c.name === "Generic ABS @COREONE HF0.6");
+    expect(abs!.alreadyInOrca).toBe(true);
+    expect(abs!.orcaMatch).toBe("Prusa Generic ABS @CORE One HF 0.6");
+    expect(candidates.some((c) => c.name === "*PLA*")).toBe(false); // abstract excluded
+  });
+
+  it("converts only the names you select", () => {
+    const out = convertSelectedVendorProfiles(graph, ORCA_FILAMENT_PROFILE_INDEX, [
+      "Prusament PLA @MK4S",
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.profile.name).toBe("Prusament PLA @MK4S");
+    expect(out[0]!.strategy).toBe("flatten");
+    expect(out[0]!.stats.droppedInvalid).toBe(0);
+  });
+
+  it("honors the printer filter when listing", () => {
+    const coreOnly = listConvertibleProfiles(graph, ORCA_FILAMENT_PROFILE_INDEX, {
+      printerFilter: ["CORE One HF 0.6"],
+    });
+    expect(coreOnly.some((c) => c.name === "Prusament PLA @MK4S")).toBe(false);
   });
 });
 

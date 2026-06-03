@@ -5,12 +5,14 @@ import {
   detectSource,
   schemaSource,
   createContext,
+  listConvertibleProfiles,
+  ORCA_FILAMENT_PROFILE_INDEX,
   type ResolutionContext,
 } from "@finsync/engine";
 import { Dropzone } from "./components/Dropzone.tsx";
 import { ResultCard } from "./components/ResultCard.tsx";
 import { SystemProfiles } from "./components/SystemProfiles.tsx";
-import { downloadZip } from "./lib/download.ts";
+import { ExportPanel } from "./components/ExportPanel.tsx";
 import sampleIni from "../../engine/test/fixtures/PrusaSlicer_config_bundle.ini?raw";
 
 interface RawInput {
@@ -22,6 +24,7 @@ interface RawInput {
 export function App() {
   const [inputs, setInputs] = useState<RawInput[]>([]);
   const [vendor, setVendor] = useState<{ name: string; text: string } | null>(null);
+  const [printer, setPrinter] = useState("CORE One HF 0.6");
   // Bumped on Clear so an in-flight File.text() batch can't repopulate after it.
   const generation = useRef(0);
   // useRef (not a module-level counter) so HMR can't reset ids while state persists.
@@ -67,6 +70,28 @@ export function App() {
     addTexts([{ name: "PrusaSlicer_config_bundle.ini (sample)", text: sampleIni }]);
 
   const allResults = useMemo(() => entries.flatMap((e) => e.results), [entries]);
+
+  // Items for the Export basket: your converted profiles (always), plus the
+  // system profiles available for the chosen printer (listed cheaply; converted
+  // only when selected for download).
+  const yourItems = useMemo(
+    () =>
+      allResults.map((r) => ({
+        filename: r.filename,
+        name: r.profile.name,
+        json: JSON.stringify(r.profile, null, 4),
+      })),
+    [allResults],
+  );
+
+  const systemCandidates = useMemo(() => {
+    if (!ctx.vendor) return [];
+    const token = printer.trim();
+    return listConvertibleProfiles(ctx.vendor, ORCA_FILAMENT_PROFILE_INDEX, {
+      printerFilter: token ? [token] : undefined,
+    }).filter((c) => !c.alreadyInOrca);
+  }, [ctx.vendor, printer]);
+
   const totals = useMemo(
     () =>
       allResults.reduce(
@@ -80,14 +105,6 @@ export function App() {
       ),
     [allResults],
   );
-
-  const downloadAll = () =>
-    downloadZip(
-      allResults.map((r) => ({
-        filename: r.filename,
-        content: JSON.stringify(r.profile, null, 4),
-      })),
-    );
 
   const hasEntries = entries.length > 0;
 
@@ -116,8 +133,17 @@ export function App() {
       <SystemProfiles
         vendorName={vendor?.name}
         graph={ctx.vendor}
+        printer={printer}
+        onPrinterChange={setPrinter}
         onLoad={(name, text) => setVendor({ name, text })}
         onClear={() => setVendor(null)}
+      />
+
+      <ExportPanel
+        yourItems={yourItems}
+        graph={ctx.vendor}
+        systemCandidates={systemCandidates}
+        printerLabel={printer.trim()}
       />
 
       {hasEntries && (
@@ -140,25 +166,15 @@ export function App() {
                 </>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  generation.current++;
-                  setInputs([]);
-                }}
-                className="rounded-md border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:bg-zinc-800"
-              >
-                Clear
-              </button>
-              {allResults.length > 0 && (
-                <button
-                  onClick={downloadAll}
-                  className="rounded-md bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-emerald-950 hover:bg-emerald-400"
-                >
-                  Download all (.zip)
-                </button>
-              )}
-            </div>
+            <button
+              onClick={() => {
+                generation.current++;
+                setInputs([]);
+              }}
+              className="rounded-md border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:bg-zinc-800"
+            >
+              Clear
+            </button>
           </div>
 
           {entries.map((entry) => (

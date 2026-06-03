@@ -90,6 +90,49 @@ function matchesPrinter(name: string, normalizedFilter: string[]): boolean {
   return normalizedFilter.some((f) => variant.includes(f));
 }
 
+export interface LibraryProfileInfo {
+  name: string;
+  /** True when OrcaSlicer already ships this exact profile (no need to convert). */
+  alreadyInOrca: boolean;
+  orcaMatch?: string;
+}
+
+/**
+ * Cheap listing of the concrete profiles a printer filter selects — WITHOUT
+ * converting them. Backs a "pick which system profiles to add" checklist, so we
+ * only do the (cheap, but non-zero) conversion work for the ones a user ticks.
+ */
+export function listConvertibleProfiles(
+  graph: VendorGraph,
+  orca: OrcaNameIndex,
+  opts: LibraryOptions = {},
+): LibraryProfileInfo[] {
+  const filter = opts.printerFilter?.map(normalizeForMatch);
+  const out: LibraryProfileInfo[] = [];
+  for (const node of graph.nodes.values()) {
+    if (node.abstract) continue;
+    if (filter && !matchesPrinter(node.name, filter)) continue;
+    const match = matchOrcaProfile(node.name, orca);
+    out.push({ name: node.name, alreadyInOrca: !!match, orcaMatch: match ?? undefined });
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Convert a specific set of vendor profiles by name (the ones a user selected). */
+export function convertSelectedVendorProfiles(
+  graph: VendorGraph,
+  orca: OrcaNameIndex,
+  names: Iterable<string>,
+): ConversionResult[] {
+  const ctx: ResolutionContext = { orca, vendor: graph };
+  const out: ConversionResult[] = [];
+  for (const name of names) {
+    const node = graph.nodes.get(name);
+    if (node) out.push(convertFilamentProfile(nodeToProfile(node, graph), ctx));
+  }
+  return out;
+}
+
 export interface PrinterVariant {
   /** Normalized display label, e.g. "CORE One HF 0.6". Also the filter token. */
   label: string;

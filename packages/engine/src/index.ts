@@ -27,12 +27,18 @@ export {
 } from "./ingest/fetchVendorBundle.js";
 export type { PrusaVendorRef, FetchedVendorBundle } from "./ingest/fetchVendorBundle.js";
 export { convertFilamentProfile } from "./convertFilament.js";
-export { convertVendorLibrary, listPrinterVariants } from "./library.js";
+export {
+  convertVendorLibrary,
+  listPrinterVariants,
+  listConvertibleProfiles,
+  convertSelectedVendorProfiles,
+} from "./library.js";
 export type {
   LibraryOptions,
   LibraryEntry,
   LibrarySkipReason,
   PrinterVariant,
+  LibraryProfileInfo,
 } from "./library.js";
 export { matchOrcaProfile, prusaToOrcaName } from "./transform/orcaMatch.js";
 export { formatReport } from "./report/report.js";
