@@ -287,7 +287,15 @@ export function App() {
 
       <footer className="mt-auto pt-6 text-center text-xs text-zinc-600">
         Runs entirely in your browser. Nothing is uploaded. ·{" "}
-        <span className="font-mono">@finsync/engine</span>
+        <span className="font-mono">@finsync/engine</span> ·{" "}
+        <a
+          href="https://github.com/henryabra/finsync"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-zinc-400"
+        >
+          GitHub
+        </a>
       </footer>
 
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
