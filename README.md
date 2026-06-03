@@ -43,6 +43,23 @@ npm install
 npm run dev --workspace @finsync/web    # http://localhost:5173
 ```
 
+### System / vendor profiles (Prusament) — shipped
+
+PrusaSlicer's export omits its built-in profiles, and a custom profile only stores
+its *diff* over a system parent — so a naive conversion is incomplete. Load your
+vendor bundle (`~/Library/Application Support/PrusaSlicer/vendor/PrusaResearch.ini`)
+and the engine, per profile:
+
+- **re-links** to the matching OrcaSlicer preset when Orca already ships the parent
+  (emits just your overrides), **else**
+- **flattens** the full inheritance chain (multi-parent + abstract `*base*` profiles,
+  PrusaSlicer merge order) into a standalone profile.
+
+It can also bulk-convert your whole system library (e.g. every Prusament profile for
+your printer), skipping abstract bases and ones Orca already has. Verified against the
+real `PrusaResearch.ini` (6,069 nodes): a CORE One HF 0.6 filter yields 372 standalone
+profiles, 0 invalid.
+
 Next: print + printer/machine profiles, then full-bundle one-shot — all behind the same UI.
 
 ## Use it
