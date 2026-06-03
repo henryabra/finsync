@@ -63,6 +63,10 @@ export function App() {
     });
   }, [ref, printer, orcaPrinters, selectedSystem, query, showExisting, excludedYours]);
 
+  // Live mirror of `ref` so the async auto-load can detect a mid-flight change.
+  const refLive = useRef(ref);
+  refLive.current = ref;
+
   // On startup, if the selected bundle version is already cached, load it
   // automatically (cache-only — never a surprise download) so system profiles are
   // ready without a click. A small toast notes it happened.
@@ -71,7 +75,9 @@ export function App() {
     autoLoaded.current = true;
     (async () => {
       const cached = await peekPrusaBundleCached(initial.ref);
-      if (!cached) return;
+      // Bail if nothing cached, or the user switched version while we awaited
+      // (don't load the old bundle under a now-different selected ref).
+      if (!cached || refLive.current !== initial.ref) return;
       setVendor((cur) =>
         cur ?? {
           name: `PrusaResearch.ini @ ${initial.ref}${cached.configVersion ? ` · v${cached.configVersion}` : ""} (cached)`,

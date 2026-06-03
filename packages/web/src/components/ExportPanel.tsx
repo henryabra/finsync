@@ -91,8 +91,26 @@ export function ExportPanel({
     [queried, hideExisting],
   );
 
+  // Only selections that are actually in scope for the current printer/bundle can
+  // be exported. `selectedSystem` is persisted across printer/bundle changes, so it
+  // may hold names that no longer apply — those must not inflate the count or the
+  // zip, nor stamp the wrong printer onto a profile meant for another.
+  const candidateNames = useMemo(
+    () => new Set(systemCandidates.map((c) => c.name)),
+    [systemCandidates],
+  );
+  const exportableSystem = useMemo(
+    () => [...selectedSystem].filter((n) => candidateNames.has(n)).sort((a, b) => a.localeCompare(b)),
+    [selectedSystem, candidateNames],
+  );
+  // Of those, how many are visible under the current filter (drives the header count).
+  const shownSelected = useMemo(() => {
+    const visible = new Set(filteredSystem.map((c) => c.name));
+    return exportableSystem.filter((n) => visible.has(n)).length;
+  }, [exportableSystem, filteredSystem]);
+
   const yoursIncluded = yourItems.filter((i) => !excludedYours.has(i.filename));
-  const selectedCount = yoursIncluded.length + selectedSystem.size;
+  const selectedCount = yoursIncluded.length + exportableSystem.length;
 
   const toggleYours = (f: string) =>
     onExcludedYoursChange((s) => {
@@ -118,11 +136,11 @@ export function ExportPanel({
       content: profileJson(i.profile, compatiblePrinters),
     }));
     const used = new Set(files.map((f) => f.filename));
-    if (graph && selectedSystem.size) {
+    if (graph && exportableSystem.length) {
       const converted = convertSelectedVendorProfiles(
         graph,
         ORCA_FILAMENT_PROFILE_INDEX,
-        selectedSystem,
+        exportableSystem,
       );
       for (const r of converted) {
         if (used.has(r.filename)) continue; // your customised profile wins on a name clash
@@ -218,13 +236,13 @@ export function ExportPanel({
           <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
               Add system profiles{printerLabel ? ` · ${printerLabel}` : ""} (
-              {selectedSystem.size} of {filteredSystem.length} shown selected)
+              {shownSelected} of {filteredSystem.length} shown selected)
             </span>
             <span className="flex gap-2 text-xs">
               <button onClick={selectAllFiltered} className="text-emerald-400 hover:underline">
                 Select{query ? " matching" : " all"}
               </button>
-              {selectedSystem.size > 0 && (
+              {exportableSystem.length > 0 && (
                 <button onClick={clearSystem} className="text-zinc-400 hover:underline">
                   Clear
                 </button>
@@ -312,6 +330,30 @@ export function ExportPanel({
                   </li>
                 )}
               </ul>
+
+              {/* Always-visible selection, placed BELOW the search list so ticking a
+                  box adds a chip here (below the cursor) and never shifts the list. */}
+              {exportableSystem.length > 0 && (
+                <div className="mt-2 rounded-md border border-emerald-700/30 bg-emerald-500/[0.04] p-2">
+                  <div className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-300/80">
+                    Selected for export · {exportableSystem.length}
+                  </div>
+                  <ul className="flex max-h-32 flex-wrap gap-1 overflow-auto">
+                    {exportableSystem.map((name) => (
+                      <li key={name}>
+                        <button
+                          onClick={() => toggleSystem(name)}
+                          title="Click to remove from export"
+                          className="group flex items-center gap-1 rounded-full border border-emerald-700/40 bg-zinc-900/70 py-0.5 pl-2 pr-1.5 text-xs text-zinc-200 hover:border-emerald-500/60"
+                        >
+                          <span className="max-w-[16rem] truncate">{name}</span>
+                          <span className="text-zinc-500 group-hover:text-zinc-200">✕</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </>
           )}
         </div>

@@ -73,15 +73,37 @@ function readLocal(): Partial<PersistedState> {
 //     return decodeState(safeAtob(location.hash.replace(/^#s=/, "")));
 //   }
 
+const str = (v: unknown, fallback: string): string => (typeof v === "string" ? v : fallback);
+const bool = (v: unknown, fallback: boolean): boolean => (typeof v === "boolean" ? v : fallback);
+const strArray = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+
 /**
- * Load persisted state, merged over defaults. Sources are spread in priority
- * order (later wins). To add sharable links, spread `readAnchor()` LAST so a
- * shared link overrides the visitor's local storage:
+ * Coerce a possibly-corrupt/old persisted blob into a valid state, field by
+ * field — persisted JSON is untrusted input (hand-edited, schema-drifted, or a
+ * future shared link), and a wrong-typed value must never reach live state
+ * (`new Set(42)` throws; `query.toLowerCase()` on a number throws).
+ */
+function normalize(raw: Partial<PersistedState>): PersistedState {
+  return {
+    ref: str(raw.ref, DEFAULT_STATE.ref),
+    printer: str(raw.printer, DEFAULT_STATE.printer),
+    orcaPrinters: str(raw.orcaPrinters, DEFAULT_STATE.orcaPrinters),
+    selectedSystem: strArray(raw.selectedSystem),
+    query: str(raw.query, DEFAULT_STATE.query),
+    showExisting: bool(raw.showExisting, DEFAULT_STATE.showExisting),
+    excludedYours: strArray(raw.excludedYours),
+  };
+}
+
+/**
+ * Load persisted state, validated against the schema. To add sharable links,
+ * merge `readAnchor()` LAST (so a shared link wins) before normalizing:
  *
- *   return { ...DEFAULT_STATE, ...readLocal(), ...readAnchor() };
+ *   return normalize({ ...readLocal(), ...readAnchor() });
  */
 export function loadState(): PersistedState {
-  return { ...DEFAULT_STATE, ...readLocal() };
+  return normalize(readLocal());
 }
 
 /** Persist the full state. Best-effort — unavailable storage is a no-op. */
