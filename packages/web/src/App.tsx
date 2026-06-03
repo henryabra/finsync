@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   convertIniToOrcaFilaments,
   parseIni,
@@ -22,6 +22,8 @@ let nextId = 1;
 
 export function App() {
   const [entries, setEntries] = useState<FileEntry[]>([]);
+  // Bumped on Clear so an in-flight File.text() batch can't repopulate after it.
+  const generation = useRef(0);
 
   const addTexts = (items: { name: string; text: string }[]) => {
     const added = items.map(({ name, text }): FileEntry => {
@@ -34,9 +36,11 @@ export function App() {
   };
 
   const onFiles = async (files: File[]) => {
+    const gen = generation.current;
     const items = await Promise.all(
       files.map(async (f) => ({ name: f.name, text: await f.text() })),
     );
+    if (generation.current !== gen) return; // cleared (or superseded) mid-read
     addTexts(items);
   };
 
@@ -112,7 +116,10 @@ export function App() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setEntries([])}
+                onClick={() => {
+                  generation.current++;
+                  setEntries([]);
+                }}
                 className="rounded-md border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:bg-zinc-800"
               >
                 Clear

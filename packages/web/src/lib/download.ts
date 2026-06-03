@@ -27,15 +27,26 @@ export function downloadZip(
   files: ZipEntry[],
   zipName = "orca-filaments.zip",
 ): void {
-  const entries: Record<string, Uint8Array> = {};
+  // Null-proto so filenames like "constructor" can't collide with Object.prototype.
+  const entries: Record<string, Uint8Array> = Object.create(null);
   for (const f of files) {
-    let name = f.filename;
-    let i = 1;
-    // De-duplicate identical filenames so no entry is silently dropped.
-    while (entries[name]) name = f.filename.replace(/\.json$/i, `_${i++}.json`);
-    entries[name] = strToU8(f.content);
+    entries[uniqueName(entries, f.filename)] = strToU8(f.content);
   }
   // level 0 = store only: profiles are tiny and this keeps it dependency-light.
   const zipped = zipSync(entries, { level: 0 });
   downloadBlob(zipName, zipped, "application/zip");
+}
+
+/** Pick a name not already in `taken`, inserting `_N` before the extension. */
+function uniqueName(taken: Record<string, unknown>, filename: string): string {
+  if (!(filename in taken)) return filename;
+  const dot = filename.lastIndexOf(".");
+  const base = dot > 0 ? filename.slice(0, dot) : filename;
+  const ext = dot > 0 ? filename.slice(dot) : "";
+  let i = 1;
+  let name: string;
+  do {
+    name = `${base}_${i++}${ext}`;
+  } while (name in taken);
+  return name;
 }

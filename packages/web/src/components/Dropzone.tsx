@@ -65,7 +65,11 @@ export function Dropzone({
         accept=".ini,.txt,text/plain"
         multiple
         hidden
-        onChange={(e) => pick(e.target.files)}
+        onChange={(e) => {
+          pick(e.target.files);
+          // Reset so picking the same file again still fires onChange.
+          e.target.value = "";
+        }}
       />
       {!compact && (
         <p className="mt-5 text-xs text-zinc-500">
