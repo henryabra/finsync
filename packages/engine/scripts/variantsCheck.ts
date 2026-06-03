@@ -1,0 +1,12 @@
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { buildVendorGraph, listPrinterVariants } from "../src/index.js";
+const PR = join(homedir(), "Library/Application Support/PrusaSlicer/vendor/PrusaResearch.ini");
+const g = buildVendorGraph(readFileSync(PR, "utf8"));
+const v = listPrinterVariants(g);
+console.log("distinct variants:", v.length);
+console.log("\ntop 20 by count:");
+[...v].sort((a,b)=>b.count-a.count).slice(0,20).forEach(x=>console.log(`  ${String(x.count).padStart(4)}  ${x.label}`));
+console.log("\nCORE One variants:");
+v.filter(x=>/core one/i.test(x.label)).forEach(x=>console.log(`  ${String(x.count).padStart(4)}  ${x.label}`));

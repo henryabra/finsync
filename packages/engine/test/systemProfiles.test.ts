@@ -7,6 +7,7 @@ import {
   convertVendorLibrary,
   convertIniToOrcaFilaments,
   createContext,
+  listPrinterVariants,
   matchOrcaProfile,
   prusaToOrcaName,
   ORCA_FILAMENT_PROFILE_INDEX,
@@ -107,6 +108,30 @@ describe("re-link vs flatten strategy", () => {
     const r = convertFilamentProfile(node("Orphan PETG"), { orca: ORCA_FILAMENT_PROFILE_INDEX });
     expect(r.strategy).toBe("diff-only");
     expect(r.inherits.kind).toBe("carried");
+  });
+});
+
+describe("printer variants (for the picker)", () => {
+  const variants = listPrinterVariants(graph);
+
+  it("lists distinct @variants normalized to Orca form, with counts", () => {
+    const v = variants.find((x) => x.label === "CORE One HF 0.6");
+    expect(v).toBeDefined();
+    expect(v!.count).toBe(1); // only Generic ABS @COREONE HF0.6 in the mini fixture
+  });
+
+  it("excludes abstract bases and variant-less profiles", () => {
+    expect(variants.some((x) => x.label.includes("*"))).toBe(false);
+    // "Prusament PLA" (no @variant) must not appear as a printer
+    expect(variants.some((x) => x.label === "Prusament PLA")).toBe(false);
+  });
+
+  it("a picked variant filters the library to matching profiles", () => {
+    const lib = convertVendorLibrary(graph, ORCA_FILAMENT_PROFILE_INDEX, {
+      printerFilter: ["CORE One HF 0.6"],
+    });
+    // The MK4S profile should be filtered out for a CORE One HF 0.6 pick.
+    expect(lib.find((e) => e.name === "Prusament PLA @MK4S")!.skipped).toBe("printer-filter");
   });
 });
 

@@ -90,6 +90,36 @@ function matchesPrinter(name: string, normalizedFilter: string[]): boolean {
   return normalizedFilter.some((f) => variant.includes(f));
 }
 
+export interface PrinterVariant {
+  /** Normalized display label, e.g. "CORE One HF 0.6". Also the filter token. */
+  label: string;
+  /** How many concrete (user-facing) profiles target this printer/nozzle. */
+  count: number;
+}
+
+/**
+ * Distinct printer/nozzle variants present in a vendor bundle — the data behind
+ * a "pick your printer" dropdown. Extracts the `@variant` from every concrete
+ * profile, normalized to Orca form, with a count. Variant-less (universal)
+ * profiles are excluded (they apply to every printer).
+ */
+export function listPrinterVariants(graph: VendorGraph): PrinterVariant[] {
+  const counts = new Map<string, number>();
+  for (const node of graph.nodes.values()) {
+    if (node.abstract) continue;
+    const at = node.name.indexOf("@");
+    if (at === -1) continue;
+    const canonical = prusaToOrcaName(node.name) ?? node.name;
+    const cAt = canonical.indexOf("@");
+    const label = (cAt === -1 ? "" : canonical.slice(cAt + 1)).trim();
+    if (!label) continue;
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
 function nodeToProfile(node: VendorNode, graph: VendorGraph): PrusaProfile {
   return {
     kind: "filament",

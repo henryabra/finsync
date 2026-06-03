@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import {
   convertVendorLibrary,
+  listPrinterVariants,
   fetchPrusaVendorBundle,
   PRUSA_VENDOR_REFS,
   DEFAULT_PRUSA_REF,
@@ -9,6 +10,7 @@ import {
   type LibraryEntry,
 } from "@finsync/engine";
 import { downloadZip } from "../lib/download.ts";
+import { VariantPicker } from "./VariantPicker.tsx";
 
 const PRUSA_INI_PATH =
   "~/Library/Application Support/PrusaSlicer/vendor/PrusaResearch.ini";
@@ -64,6 +66,8 @@ export function SystemProfiles({
       }),
     );
   };
+
+  const variants = useMemo(() => (graph ? listPrinterVariants(graph) : []), [graph]);
 
   const summary = useMemo(() => {
     if (!lib) return null;
@@ -164,22 +168,15 @@ export function SystemProfiles({
           <div className="rounded-lg bg-zinc-950/40 p-3">
             <p className="mb-2 text-xs text-zinc-400">
               Turn Prusa’s built-in filament profiles into OrcaSlicer files you can import.
-              The box below keeps only profiles for <strong>your printer + nozzle</strong> —
-              type your machine the way Prusa labels it (e.g.{" "}
-              <code className="text-zinc-300">CORE One HF 0.6</code>). Clear the box to convert
-              every printer’s profiles.
+              Pick <strong>your printer &amp; nozzle</strong> below — the number next to each is
+              how many profiles match. Choose <em>All printers</em> to convert everything.
             </p>
             <div className="flex flex-wrap items-end gap-3">
-              <label className="flex-1">
+              <label className="min-w-[16rem] flex-1">
                 <span className="mb-1 block text-[11px] uppercase tracking-wide text-zinc-500">
                   My printer &amp; nozzle
                 </span>
-                <input
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  placeholder="e.g. CORE One HF 0.6 — or leave blank for all printers"
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-sm text-zinc-100 outline-none focus:border-emerald-500"
-                />
+                <VariantPicker variants={variants} value={filter} onChange={setFilter} />
               </label>
               <button
                 onClick={convert}
