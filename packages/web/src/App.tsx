@@ -18,28 +18,39 @@ interface FileEntry {
   results: ConversionResult[];
 }
 
-let nextId = 1;
-
 export function App() {
   const [entries, setEntries] = useState<FileEntry[]>([]);
   // Bumped on Clear so an in-flight File.text() batch can't repopulate after it.
   const generation = useRef(0);
+  // useRef (not a module-level counter) so HMR can't reset ids while state persists.
+  const nextId = useRef(1);
 
   const addTexts = (items: { name: string; text: string }[]) => {
     const added = items.map(({ name, text }): FileEntry => {
       const parsed = parseIni(text);
       const src = detectSource(parsed.header, name);
       const sourceLabel = src.version ? `${src.slicer} ${src.version}` : src.slicer;
-      return { id: nextId++, name, sourceLabel, results: convertIniToOrcaFilaments(text, name) };
+      return {
+        id: nextId.current++,
+        name,
+        sourceLabel,
+        results: convertIniToOrcaFilaments(text, name),
+      };
     });
     setEntries((prev) => [...prev, ...added]);
   };
 
   const onFiles = async (files: File[]) => {
     const gen = generation.current;
-    const items = await Promise.all(
-      files.map(async (f) => ({ name: f.name, text: await f.text() })),
-    );
+    let items: { name: string; text: string }[];
+    try {
+      items = await Promise.all(
+        files.map(async (f) => ({ name: f.name, text: await f.text() })),
+      );
+    } catch (err) {
+      console.error("finsync: failed to read dropped file(s)", err);
+      return;
+    }
     if (generation.current !== gen) return; // cleared (or superseded) mid-read
     addTexts(items);
   };

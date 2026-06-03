@@ -14,7 +14,9 @@ export function downloadBlob(
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
+  // Defer revoke: revoking synchronously after click() can abort the download
+  // in some browsers before it has started.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export interface ZipEntry {
