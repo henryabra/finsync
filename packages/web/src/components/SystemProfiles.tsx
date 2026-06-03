@@ -161,52 +161,76 @@ export function SystemProfiles({
             Inherited profiles in your export now flatten automatically when Orca lacks the parent.
           </div>
 
-          <div className="flex flex-wrap items-end gap-3 rounded-lg bg-zinc-950/40 p-3">
-            <label className="flex-1">
-              <span className="mb-1 block text-[11px] uppercase tracking-wide text-zinc-500">
-                Printer filter (comma-separated; blank = all)
-              </span>
-              <input
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                placeholder="e.g. CORE One HF 0.6"
-                className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-sm text-zinc-100 outline-none focus:border-emerald-500"
-              />
-            </label>
-            <button
-              onClick={convert}
-              className="rounded-md bg-emerald-500 px-3 py-1.5 text-sm font-semibold text-emerald-950 hover:bg-emerald-400"
-            >
-              Convert library
-            </button>
+          <div className="rounded-lg bg-zinc-950/40 p-3">
+            <p className="mb-2 text-xs text-zinc-400">
+              Turn Prusa’s built-in filament profiles into OrcaSlicer files you can import.
+              The box below keeps only profiles for <strong>your printer + nozzle</strong> —
+              type your machine the way Prusa labels it (e.g.{" "}
+              <code className="text-zinc-300">CORE One HF 0.6</code>). Clear the box to convert
+              every printer’s profiles.
+            </p>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="flex-1">
+                <span className="mb-1 block text-[11px] uppercase tracking-wide text-zinc-500">
+                  My printer &amp; nozzle
+                </span>
+                <input
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  placeholder="e.g. CORE One HF 0.6 — or leave blank for all printers"
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-sm text-zinc-100 outline-none focus:border-emerald-500"
+                />
+              </label>
+              <button
+                onClick={convert}
+                className="rounded-md bg-emerald-500 px-3 py-1.5 text-sm font-semibold text-emerald-950 hover:bg-emerald-400"
+              >
+                Convert library
+              </button>
+            </div>
           </div>
 
           {summary && (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm">
-              <div className="text-zinc-300">
-                <span className="font-semibold text-emerald-300">{summary.converted}</span> converted ·{" "}
-                <span className="text-zinc-400">{summary.inOrca}</span> already in Orca (skipped)
-                {summary.filtered > 0 && (
-                  <>
-                    {" "}
-                    · <span className="text-zinc-400">{summary.filtered}</span> off-printer
-                  </>
-                )}
-                {summary.invalid > 0 && (
-                  <>
-                    {" "}
-                    · <span className="text-red-300">{summary.invalid}</span> invalid
-                  </>
+            <div className="space-y-3 rounded-lg border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="font-medium text-zinc-100">
+                  <span className="text-emerald-300">{summary.converted}</span> filament profiles
+                  ready to import
+                </span>
+                {summary.converted > 0 && (
+                  <button
+                    onClick={() => downloadZip(summary.files, "orca-system-filaments.zip")}
+                    className="rounded-md bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-emerald-950 hover:bg-emerald-400"
+                  >
+                    Download .zip
+                  </button>
                 )}
               </div>
-              {summary.converted > 0 && (
-                <button
-                  onClick={() => downloadZip(summary.files, "orca-system-filaments.zip")}
-                  className="rounded-md bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-emerald-950 hover:bg-emerald-400"
-                >
-                  Download {summary.converted} profiles (.zip)
-                </button>
-              )}
+              <ul className="space-y-1 text-xs text-zinc-400">
+                <li>
+                  <span className="font-semibold text-emerald-300">{summary.converted}</span>{" "}
+                  converted to Orca files — in the download. Unzip into OrcaSlicer’s filament
+                  folder, or import each from OrcaSlicer.
+                </li>
+                <li>
+                  <span className="font-semibold text-zinc-300">{summary.inOrca}</span> skipped —
+                  OrcaSlicer already ships these, so you don’t need them.
+                </li>
+                {summary.filtered > 0 && (
+                  <li>
+                    <span className="font-semibold text-zinc-300">
+                      {summary.filtered.toLocaleString()}
+                    </span>{" "}
+                    skipped — they’re for other printers/nozzles. Edit the box above to include them.
+                  </li>
+                )}
+                {summary.invalid > 0 && (
+                  <li>
+                    <span className="font-semibold text-red-300">{summary.invalid}</span> values
+                    dropped — not understood by your Orca version (the profiles still import fine).
+                  </li>
+                )}
+              </ul>
             </div>
           )}
         </div>
