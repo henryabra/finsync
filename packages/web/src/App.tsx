@@ -8,7 +8,6 @@ import {
   listConvertibleProfiles,
   buildCompatibilityIndex,
   ORCA_FILAMENT_PROFILE_INDEX,
-  DEFAULT_PRUSA_REF,
   type ResolutionContext,
 } from "@finsync/engine";
 import { Dropzone } from "./components/Dropzone.tsx";
@@ -17,6 +16,7 @@ import { SystemProfiles } from "./components/SystemProfiles.tsx";
 import { ExportPanel } from "./components/ExportPanel.tsx";
 import { Toast } from "./components/Toast.tsx";
 import { peekPrusaBundleCached } from "./lib/prusaCache.ts";
+import { loadState, saveState } from "./lib/appState.ts";
 import sampleIni from "../../engine/test/fixtures/PrusaSlicer_config_bundle.ini?raw";
 
 interface RawInput {
@@ -26,9 +26,17 @@ interface RawInput {
 }
 
 export function App() {
+  // Restored once on mount (localStorage today; a shared link later — see appState).
+  const [initial] = useState(loadState);
+
   const [inputs, setInputs] = useState<RawInput[]>([]);
   const [vendor, setVendor] = useState<{ name: string; text: string } | null>(null);
-  const [printer, setPrinter] = useState(""); // printer_model token; "" = all printers
+  const [ref, setRef] = useState(initial.ref); // selected Prusa bundle version
+  const [printer, setPrinter] = useState(initial.printer); // printer_model token; "" = all
+  const [orcaPrinters, setOrcaPrinters] = useState(initial.orcaPrinters);
+  const [selectedSystem, setSelectedSystem] = useState<Set<string>>(
+    () => new Set(initial.selectedSystem),
+  );
   const [toast, setToast] = useState<string | null>(null);
   // Bumped on Clear so an in-flight File.text() batch can't repopulate after it.
   const generation = useRef(0);
@@ -37,26 +45,31 @@ export function App() {
   // useRef (not a module-level counter) so HMR can't reset ids while state persists.
   const nextId = useRef(1);
 
-  // On startup, if the latest-stable Prusa bundle is already cached, load it
+  // Persist the remembered choices whenever they change.
+  useEffect(() => {
+    saveState({ ref, printer, orcaPrinters, selectedSystem: [...selectedSystem] });
+  }, [ref, printer, orcaPrinters, selectedSystem]);
+
+  // On startup, if the selected bundle version is already cached, load it
   // automatically (cache-only — never a surprise download) so system profiles are
   // ready without a click. A small toast notes it happened.
   useEffect(() => {
     if (autoLoaded.current) return;
     autoLoaded.current = true;
     (async () => {
-      const cached = await peekPrusaBundleCached(DEFAULT_PRUSA_REF);
+      const cached = await peekPrusaBundleCached(initial.ref);
       if (!cached) return;
       setVendor((cur) =>
         cur ?? {
-          name: `PrusaResearch.ini @ ${DEFAULT_PRUSA_REF}${cached.configVersion ? ` · v${cached.configVersion}` : ""} (cached)`,
+          name: `PrusaResearch.ini @ ${initial.ref}${cached.configVersion ? ` · v${cached.configVersion}` : ""} (cached)`,
           text: cached.text,
         },
       );
       setToast(
-        `Loaded Prusa system profiles from cache${cached.configVersion ? ` · v${cached.configVersion}` : ""} (${DEFAULT_PRUSA_REF}).`,
+        `Loaded Prusa system profiles from cache${cached.configVersion ? ` · v${cached.configVersion}` : ""} (${initial.ref}).`,
       );
     })();
-  }, []);
+  }, [initial.ref]);
 
   // Re-linking to Orca presets is always on; a loaded vendor bundle enables
   // flattening for parents Orca doesn't ship. Conversions re-run when it changes.
@@ -174,6 +187,8 @@ export function App() {
         printers={printers}
         printer={printer}
         onPrinterChange={setPrinter}
+        bundleRef={ref}
+        onBundleRefChange={setRef}
         onLoad={(name, text) => setVendor({ name, text })}
         onClear={() => setVendor(null)}
       />
@@ -183,6 +198,10 @@ export function App() {
         graph={ctx.vendor}
         systemCandidates={systemCandidates}
         printerLabel={printerLabel}
+        orcaPrinters={orcaPrinters}
+        onOrcaPrintersChange={setOrcaPrinters}
+        selectedSystem={selectedSystem}
+        onSelectedSystemChange={setSelectedSystem}
       />
 
       {hasEntries && (

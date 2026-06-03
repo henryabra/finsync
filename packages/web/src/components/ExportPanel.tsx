@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import {
   convertSelectedVendorProfiles,
   ORCA_FILAMENT_PROFILE_INDEX,
@@ -34,16 +34,24 @@ export function ExportPanel({
   graph,
   systemCandidates,
   printerLabel,
+  orcaPrinters,
+  onOrcaPrintersChange,
+  selectedSystem,
+  onSelectedSystemChange,
 }: {
   yourItems: YourItem[];
   graph?: VendorGraph;
   systemCandidates: LibraryProfileInfo[];
   printerLabel: string;
+  /** Persisted by App: Orca printer name(s) for compatible_printers stamping. */
+  orcaPrinters: string;
+  onOrcaPrintersChange: (v: string) => void;
+  /** Persisted by App: system filament profiles ticked for export. */
+  selectedSystem: Set<string>;
+  onSelectedSystemChange: Dispatch<SetStateAction<Set<string>>>;
 }) {
   const [excludedYours, setExcludedYours] = useState<Set<string>>(new Set());
-  const [selectedSystem, setSelectedSystem] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
-  const [orcaPrinters, setOrcaPrinters] = useState("");
 
   const compatiblePrinters = orcaPrinters
     .split(",")
@@ -68,15 +76,15 @@ export function ExportPanel({
     });
 
   const toggleSystem = (name: string) =>
-    setSelectedSystem((s) => {
+    onSelectedSystemChange((s) => {
       const n = new Set(s);
       n.has(name) ? n.delete(name) : n.add(name);
       return n;
     });
 
   const selectAllFiltered = () =>
-    setSelectedSystem((s) => new Set([...s, ...filteredSystem.map((c) => c.name)]));
-  const clearSystem = () => setSelectedSystem(new Set());
+    onSelectedSystemChange((s) => new Set([...s, ...filteredSystem.map((c) => c.name)]));
+  const clearSystem = () => onSelectedSystemChange(new Set());
 
   const download = () => {
     const files = yoursIncluded.map((i) => ({
@@ -136,7 +144,7 @@ export function ExportPanel({
           </span>
           <input
             value={orcaPrinters}
-            onChange={(e) => setOrcaPrinters(e.target.value)}
+            onChange={(e) => onOrcaPrintersChange(e.target.value)}
             placeholder="e.g. Prusa CORE One L HF 0.6 nozzle"
             className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-sm text-zinc-100 outline-none focus:border-emerald-500"
           />

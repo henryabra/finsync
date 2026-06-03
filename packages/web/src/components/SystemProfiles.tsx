@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import {
   PRUSA_VENDOR_REFS,
-  DEFAULT_PRUSA_REF,
   type VendorGraph,
   type PrinterOption,
 } from "@finsync/engine";
@@ -28,6 +27,8 @@ export function SystemProfiles({
   printers,
   printer,
   onPrinterChange,
+  bundleRef,
+  onBundleRefChange,
   onLoad,
   onClear,
 }: {
@@ -36,16 +37,18 @@ export function SystemProfiles({
   printers: PrinterOption[];
   printer: string;
   onPrinterChange: (v: string) => void;
+  /** Selected Prusa bundle version (persisted by App). */
+  bundleRef: string;
+  onBundleRefChange: (v: string) => void;
   onLoad: (name: string, text: string) => void;
   onClear: () => void;
 }) {
   const input = useRef<HTMLInputElement>(null);
-  const [ref, setRef] = useState(DEFAULT_PRUSA_REF);
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [cacheTick, setCacheTick] = useState(0);
 
-  const cached = useMemo(() => getCacheMeta(ref), [ref, cacheTick]);
+  const cached = useMemo(() => getCacheMeta(bundleRef), [bundleRef, cacheTick]);
 
   const loadFile = async (file: File | undefined) => {
     if (!file) return;
@@ -56,10 +59,10 @@ export function SystemProfiles({
     setFetching(true);
     setFetchError(null);
     try {
-      const b = await fetchPrusaBundleCached(ref, force);
+      const b = await fetchPrusaBundleCached(bundleRef, force);
       const ver = b.configVersion ? ` · v${b.configVersion}` : "";
       const tag = b.fromCache ? " (cached)" : "";
-      onLoad(`PrusaResearch.ini @ ${ref}${ver}${tag}`, b.text);
+      onLoad(`PrusaResearch.ini @ ${bundleRef}${ver}${tag}`, b.text);
       setCacheTick((t) => t + 1);
     } catch (e) {
       setFetchError(e instanceof Error ? e.message : "Fetch failed.");
@@ -105,8 +108,8 @@ export function SystemProfiles({
         <div className="mt-4 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <select
-              value={ref}
-              onChange={(e) => setRef(e.target.value)}
+              value={bundleRef}
+              onChange={(e) => onBundleRefChange(e.target.value)}
               disabled={fetching}
               className="rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-sm text-zinc-100 outline-none focus:border-emerald-500"
             >
