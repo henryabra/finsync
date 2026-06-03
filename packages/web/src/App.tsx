@@ -135,12 +135,16 @@ export function App() {
     if (printer && compat && !compat.printers.some((p) => p.model === printer)) setPrinter("");
   }, [compat, printer]);
 
+  // All profiles compatible with the chosen printer. Ones Orca already ships are
+  // kept (flagged `alreadyInOrca`) — the Export panel hides them by default but can
+  // reveal them, which CORE One L (and other variants Orca's shipped copies don't
+  // attach to) need.
   const systemCandidates = useMemo(() => {
     if (!ctx.vendor || !compat) return [];
     return listConvertibleProfiles(ctx.vendor, ORCA_FILAMENT_PROFILE_INDEX, {
       printerModel: printer || undefined,
       index: compat,
-    }).filter((c) => !c.alreadyInOrca);
+    });
   }, [ctx.vendor, compat, printer]);
 
   const totals = useMemo(
@@ -198,6 +202,7 @@ export function App() {
         graph={ctx.vendor}
         systemCandidates={systemCandidates}
         printerLabel={printerLabel}
+        printerSelected={!!printer}
         orcaPrinters={orcaPrinters}
         onOrcaPrintersChange={setOrcaPrinters}
         selectedSystem={selectedSystem}

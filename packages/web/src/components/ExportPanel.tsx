@@ -34,6 +34,7 @@ export function ExportPanel({
   graph,
   systemCandidates,
   printerLabel,
+  printerSelected,
   orcaPrinters,
   onOrcaPrintersChange,
   selectedSystem,
@@ -43,6 +44,8 @@ export function ExportPanel({
   graph?: VendorGraph;
   systemCandidates: LibraryProfileInfo[];
   printerLabel: string;
+  /** True when a specific printer is chosen — then nothing is hidden, only badged. */
+  printerSelected: boolean;
   /** Persisted by App: Orca printer name(s) for compatible_printers stamping. */
   orcaPrinters: string;
   onOrcaPrintersChange: (v: string) => void;
@@ -52,18 +55,33 @@ export function ExportPanel({
 }) {
   const [excludedYours, setExcludedYours] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
+  // Profiles Orca already ships are hidden by default ("you already have them"),
+  // but some printers (e.g. CORE One L) can't actually use Orca's shipped copy, so
+  // this reveals them for export.
+  const [showExisting, setShowExisting] = useState(false);
 
   const compatiblePrinters = orcaPrinters
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
 
-  const filteredSystem = useMemo(() => {
+  const queried = useMemo(() => {
     const q = query.toLowerCase().trim();
-    return q
-      ? systemCandidates.filter((c) => c.name.toLowerCase().includes(q))
-      : systemCandidates;
+    return q ? systemCandidates.filter((c) => c.name.toLowerCase().includes(q)) : systemCandidates;
   }, [systemCandidates, query]);
+
+  // How many of the currently-queried profiles Orca already ships.
+  const existingCount = useMemo(() => queried.filter((c) => c.alreadyInOrca).length, [queried]);
+
+  // Hide already-shipped profiles ONLY in the unfiltered "All printers" view (pure
+  // noise-reduction). Once a specific printer is chosen, show everything compatible
+  // with it — Orca's shipped copy may not actually attach to that printer (e.g. a
+  // CORE One L, or any user "- Copy"), so we badge rather than hide.
+  const hideExisting = !printerSelected && !showExisting;
+  const filteredSystem = useMemo(
+    () => (hideExisting ? queried.filter((c) => !c.alreadyInOrca) : queried),
+    [queried, hideExisting],
+  );
 
   const yoursIncluded = yourItems.filter((i) => !excludedYours.has(i.filename));
   const selectedCount = yoursIncluded.length + selectedSystem.size;
@@ -192,7 +210,7 @@ export function ExportPanel({
           <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
               Add system profiles{printerLabel ? ` · ${printerLabel}` : ""} (
-              {selectedSystem.size} of {systemCandidates.length} selected)
+              {selectedSystem.size} of {filteredSystem.length} shown selected)
             </span>
             <span className="flex gap-2 text-xs">
               <button onClick={selectAllFiltered} className="text-emerald-400 hover:underline">
@@ -208,7 +226,7 @@ export function ExportPanel({
 
           {systemCandidates.length === 0 ? (
             <p className="text-xs text-zinc-500">
-              No system profiles to add for this printer (Orca may already ship them, or none match).
+              No system profiles to add for this printer (none match its compatibility).
             </p>
           ) : (
             <>
@@ -218,6 +236,34 @@ export function ExportPanel({
                 placeholder="Search system profiles… e.g. Prusament PETG"
                 className="mb-2 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-sm text-zinc-100 outline-none focus:border-emerald-500"
               />
+              {existingCount > 0 && !printerSelected && (
+                <label className="mb-2 flex cursor-pointer items-start gap-2 text-xs text-zinc-400">
+                  <input
+                    type="checkbox"
+                    checked={showExisting}
+                    onChange={() => setShowExisting((v) => !v)}
+                    className="mt-0.5 accent-emerald-500"
+                  />
+                  <span>
+                    Also show {existingCount} profile{existingCount === 1 ? "" : "s"} OrcaSlicer
+                    already ships.{" "}
+                    <span className="text-zinc-500">
+                      Hidden in this “all printers” view to cut noise — pick your printer above and
+                      they’ll show automatically.
+                    </span>
+                  </span>
+                </label>
+              )}
+              {existingCount > 0 && printerSelected && (
+                <p className="mb-2 text-xs text-zinc-500">
+                  {existingCount} of these are also shipped by Orca (badged{" "}
+                  <span className="rounded bg-zinc-800 px-1 py-0.5 text-[10px] text-zinc-400">
+                    in Orca
+                  </span>
+                  ) — but Orca’s copy may not attach to your printer, so export them if they’re
+                  missing in Orca.
+                </p>
+              )}
               <ul className="max-h-72 space-y-0.5 overflow-auto rounded-md border border-zinc-800 bg-zinc-950/40 p-1">
                 {filteredSystem.slice(0, RENDER_CAP).map((c) => (
                   <li key={c.name}>
@@ -229,6 +275,14 @@ export function ExportPanel({
                         className="accent-emerald-500"
                       />
                       <span className="text-zinc-300">{c.name}</span>
+                      {c.alreadyInOrca && (
+                        <span
+                          title={c.orcaMatch ? `Orca ships “${c.orcaMatch}”` : "OrcaSlicer already ships this"}
+                          className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400"
+                        >
+                          in Orca
+                        </span>
+                      )}
                     </label>
                   </li>
                 ))}
@@ -238,7 +292,16 @@ export function ExportPanel({
                   </li>
                 )}
                 {filteredSystem.length === 0 && (
-                  <li className="px-2 py-1 text-xs text-zinc-500">No match for “{query}”.</li>
+                  <li className="px-2 py-1 text-xs text-zinc-500">
+                    {query ? `No match for “${query}”.` : null}
+                    {hideExisting && existingCount > 0 && (
+                      <>
+                        {query ? " " : ""}
+                        All {query ? "matching " : ""}profiles here are ones Orca already ships —
+                        tick “Also show …” above to include them.
+                      </>
+                    )}
+                  </li>
                 )}
               </ul>
             </>
